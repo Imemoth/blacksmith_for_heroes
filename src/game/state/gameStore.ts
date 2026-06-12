@@ -4,7 +4,11 @@ import type { EntityId } from "../../types/common.types";
 import type { GameState } from "../../types/gameState.types";
 import { createSequenceRng, defaultRng, type Rng } from "../rng/rng";
 import {
+  acceptGuildContractAction,
   advanceGame,
+  deliverItemToGuildContractAction,
+  deliverItemToHeroCommissionAction,
+  dismissHeroCommissionAction,
   forceCompleteCraftAction,
   grantDebugResources,
   sellItemAction,
@@ -16,6 +20,10 @@ type GameStoreActions = {
   tick: () => void;
   startSwordCraft: () => void;
   sellItem: (itemId: EntityId) => void;
+  acceptGuildContract: (contractId: EntityId) => void;
+  deliverItemToGuildContract: (itemId: EntityId, contractId: EntityId) => void;
+  deliverItemToHeroCommission: (itemId: EntityId, commissionId: EntityId) => void;
+  dismissHeroCommission: (commissionId: EntityId) => void;
   forceCompleteCraft: (rng?: Rng) => void;
   forceRareCraft: () => void;
   forceEpicCraft: () => void;
@@ -81,9 +89,13 @@ export function useGameStore(): GameStore {
         setState((previousState) => {
           const now = Date.now();
           const beforeCrafted = previousState.player.craftedItemCount;
+          const beforeLogCount = previousState.log.entries.length;
           const nextState = advanceGame(previousState, now, defaultRng);
 
-          if (nextState.player.craftedItemCount !== beforeCrafted) {
+          if (
+            nextState.player.craftedItemCount !== beforeCrafted ||
+            nextState.log.entries.length !== beforeLogCount
+          ) {
             saveGame(nextState, now);
           }
 
@@ -104,6 +116,38 @@ export function useGameStore(): GameStore {
         applyStateUpdate((previousState, now) => sellItemAction(previousState, itemId, now), {
           saveAfter: true
         });
+      },
+      acceptGuildContract: (contractId) => {
+        applyStateUpdate(
+          (previousState, now) => acceptGuildContractAction(previousState, contractId, now),
+          { saveAfter: true }
+        );
+      },
+      deliverItemToGuildContract: (itemId, contractId) => {
+        applyStateUpdate(
+          (previousState, now) =>
+            deliverItemToGuildContractAction(previousState, itemId, contractId, {
+              now,
+              rng: defaultRng
+            }),
+          { saveAfter: true }
+        );
+      },
+      deliverItemToHeroCommission: (itemId, commissionId) => {
+        applyStateUpdate(
+          (previousState, now) =>
+            deliverItemToHeroCommissionAction(previousState, itemId, commissionId, {
+              now,
+              rng: defaultRng
+            }),
+          { saveAfter: true }
+        );
+      },
+      dismissHeroCommission: (commissionId) => {
+        applyStateUpdate(
+          (previousState, now) => dismissHeroCommissionAction(previousState, commissionId, now),
+          { saveAfter: true }
+        );
       },
       forceCompleteCraft: completeActiveCraftWithRng,
       forceRareCraft: () => {

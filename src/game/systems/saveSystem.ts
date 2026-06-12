@@ -4,8 +4,10 @@ import type { SaveGame } from "../../types/save.types";
 import type { GameState } from "../../types/gameState.types";
 import { clamp } from "../../utils/math";
 import { createInitialGameState } from "../state/createInitialGameState";
-import { calculateReputationLevel } from "../state/selectors";
+import { defaultRng } from "../rng/rng";
 import { applyOfflineProgress } from "./offlineProgressSystem";
+import { initializeOrderState } from "./orderSystem";
+import { calculateReputationLevel } from "./reputationSystem";
 
 export const SAVE_KEY = "blacksmith_for_heroes_save";
 export const CURRENT_SAVE_VERSION = 1;
@@ -73,7 +75,7 @@ export function repairLoadedState(state: GameState, now: number): GameState {
   const tierConfig =
     TIERS[state.workshop.forgeTier as keyof typeof TIERS] ?? TIERS[1];
 
-  return {
+  const repairedState: GameState = {
     ...state,
     player: {
       ...state.player,
@@ -111,6 +113,8 @@ export function repairLoadedState(state: GameState, now: number): GameState {
     },
     lastSavedAt: Math.min(state.lastSavedAt, now)
   };
+
+  return initializeOrderState(repairedState, { now, rng: defaultRng });
 }
 
 function prepareStateForSave(state: GameState, now: number): GameState {

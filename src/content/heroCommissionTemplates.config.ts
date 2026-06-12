@@ -1,0 +1,82 @@
+import type { HeroCommissionTemplate } from "../types/order.types";
+
+export const HERO_COMMISSION_TEMPLATES = [
+  {
+    id: "hero_guard_sword",
+    heroClass: "guard",
+    requiredRepLevel: 1,
+    requiredTier: 1,
+    requiredBlueprintId: "bp_sword_base",
+    requiredItemType: "sword",
+    minLevelRange: [2, 4],
+    preferredAffix: "sharp",
+    goldMultiplierRange: [0.5, 0.75],
+    reputationRewardRange: [25, 40],
+    baseFeedbackChance: 0.35,
+    weight: 12,
+    unlock: { cities: ["oakvale"] }
+  },
+  {
+    id: "hero_ranger_bow",
+    heroClass: "ranger",
+    requiredRepLevel: 2,
+    requiredTier: 1,
+    requiredBlueprintId: "bp_bow_base",
+    requiredItemType: "bow",
+    minLevelRange: [4, 7],
+    preferredAffix: "precise",
+    goldMultiplierRange: [0.55, 0.8],
+    reputationRewardRange: [40, 65],
+    baseFeedbackChance: 0.4,
+    weight: 10,
+    unlock: { cities: ["oakvale"] }
+  },
+  {
+    id: "hero_mage_staff",
+    heroClass: "mage",
+    requiredRepLevel: 3,
+    requiredTier: 1,
+    requiredBlueprintId: "bp_staff_base",
+    requiredItemType: "staff",
+    minLevelRange: [6, 10],
+    preferredAffix: "arcane",
+    bonusRarity: "rare",
+    goldMultiplierRange: [0.55, 0.85],
+    reputationRewardRange: [60, 90],
+    baseFeedbackChance: 0.45,
+    weight: 8,
+    unlock: { cities: ["oakvale"] }
+  },
+  {
+    id: "hero_mercenary_axe",
+    heroClass: "mercenary",
+    requiredRepLevel: 4,
+    requiredTier: 1,
+    requiredBlueprintId: "bp_axe_base",
+    requiredItemType: "axe",
+    minLevelRange: [8, 12],
+    preferredAffix: "heavy",
+    bonusRarity: "rare",
+    goldMultiplierRange: [0.6, 0.9],
+    reputationRewardRange: [85, 130],
+    baseFeedbackChance: 0.5,
+    weight: 8,
+    unlock: { cities: ["oakvale"] }
+  },
+  {
+    id: "hero_duelist_advanced_sword",
+    heroClass: "duelist",
+    requiredRepLevel: 5,
+    requiredTier: 2,
+    requiredBlueprintId: "bp_sword_basic_pattern",
+    requiredItemType: "sword",
+    minLevelRange: [12, 15],
+    preferredAffix: "balanced",
+    bonusRarity: "epic",
+    goldMultiplierRange: [0.6, 0.9],
+    reputationRewardRange: [120, 180],
+    baseFeedbackChance: 0.55,
+    weight: 5,
+    unlock: { cities: ["oakvale"] }
+  }
+] as const satisfies HeroCommissionTemplate[];

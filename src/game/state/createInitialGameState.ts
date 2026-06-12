@@ -4,13 +4,15 @@ import { RESOURCE_CONFIG } from "../../config/resources.config";
 import { TIERS } from "../../config/tiers.config";
 import type { GameState } from "../../types/gameState.types";
 import { createId } from "../../utils/ids";
+import { defaultRng } from "../rng/rng";
+import { initializeOrderState } from "../systems/orderSystem";
 
 export function createInitialGameState(now: number): GameState {
   const defaultBlueprintIds = BLUEPRINTS.filter(
     (blueprint) => "ownedByDefault" in blueprint && blueprint.ownedByDefault
   ).map((blueprint) => blueprint.id);
 
-  return {
+  const baseState: GameState = {
     version: 1,
     player: {
       reputationXp: 0,
@@ -87,4 +89,6 @@ export function createInitialGameState(now: number): GameState {
     currentCityId: "oakvale",
     lastSavedAt: now
   };
+
+  return initializeOrderState(baseState, { now, rng: defaultRng });
 }
