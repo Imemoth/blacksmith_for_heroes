@@ -43,6 +43,31 @@ button {
   padding: 24px;
 }
 
+.main-tabs {
+  display: flex;
+  gap: 8px;
+  width: min(1180px, 100%);
+  margin: 0 auto 18px;
+}
+
+.tab-button {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  color: #fffaf1;
+}
+
 .forge-page {
   width: min(1180px, 100%);
   margin: 0 auto;
@@ -324,13 +349,83 @@ button {
   font-weight: 700;
 }
 
+.global-notice {
+  width: min(1180px, 100%);
+  margin: 0 auto 18px;
+}
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.order-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fffaf1;
+}
+
+.order-card.hero {
+  background: #fff7e8;
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.order-card h3,
+.delivery-list h4 {
+  margin: 0;
+}
+
+.order-requirements {
+  display: grid;
+  gap: 8px;
+}
+
+.order-requirement,
+.delivery-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-requirement {
+  border-radius: 8px;
+  background: #f8efe0;
+  padding: 10px;
+}
+
+.delivery-list {
+  display: grid;
+  gap: 10px;
+}
+
+.delivery-row {
+  align-items: stretch;
+}
+
+.delivery-row .item-card {
+  flex: 1;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     padding: 16px;
   }
 
   .page-header,
-  .forge-grid {
+  .forge-grid,
+  .orders-grid {
     grid-template-columns: 1fr;
     display: grid;
   }
@@ -348,7 +443,10 @@ button {
 
   .slot-row,
   .craft-row,
-  .item-row {
+  .item-row,
+  .order-card-header,
+  .order-requirement,
+  .delivery-row {
     align-items: flex-start;
     flex-direction: column;
   }

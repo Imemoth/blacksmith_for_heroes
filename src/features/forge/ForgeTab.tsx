@@ -5,12 +5,13 @@ import { TopResourceBar } from "../../components/game/TopResourceBar";
 import { BLUEPRINTS } from "../../config/blueprints.config";
 import { ITEM_TYPES } from "../../config/itemTypes.config";
 import { canStartCraft } from "../../game/systems/craftSystem";
-import { useGameStore } from "../../game/state/gameStore";
+import type { GameStore } from "../../game/state/gameStore";
 import {
   getActiveCraftForSlot,
   getBlueprintLevelRange,
   getInventoryItems,
   getLastCraftedItem,
+  getMatchingOrderLabelsForItem,
   isLegendaryEnabled
 } from "../../game/state/selectors";
 import { formatResource } from "../../utils/format";
@@ -18,8 +19,11 @@ import { CraftResultPanel } from "./CraftResultPanel";
 import { DebugPanel } from "./DebugPanel";
 import { ForgeSlot } from "./ForgeSlot";
 
-export function ForgeTab() {
-  const store = useGameStore();
+type ForgeTabProps = {
+  store: GameStore;
+};
+
+export function ForgeTab({ store }: ForgeTabProps) {
   const { state, actions, lastError } = store;
   const now = Date.now();
   const swordBlueprint = BLUEPRINTS.find((blueprint) => blueprint.id === "bp_sword_base")!;
@@ -117,7 +121,12 @@ export function ForgeTab() {
             <div className="item-list">
               {inventoryItems.length ? (
                 inventoryItems.map((item) => (
-                  <ItemCard key={item.itemId} item={item} onSell={actions.sellItem} />
+                  <ItemCard
+                    key={item.itemId}
+                    item={item}
+                    matchingOrderLabels={getMatchingOrderLabelsForItem(state, item)}
+                    onSell={actions.sellItem}
+                  />
                 ))
               ) : (
                 <p className="muted">No crafted items yet. Start crafting in the Forge.</p>

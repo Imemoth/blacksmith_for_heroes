@@ -8,9 +8,10 @@ type ItemCardProps = {
   item: ItemState;
   onSell?: (itemId: string) => void;
   compact?: boolean;
+  matchingOrderLabels?: string[];
 };
 
-export function ItemCard({ item, onSell, compact = false }: ItemCardProps) {
+export function ItemCard({ item, onSell, compact = false, matchingOrderLabels = [] }: ItemCardProps) {
   return (
     <article className={`item-card ${item.rarity}`}>
       <div className="item-row">
@@ -40,6 +41,12 @@ export function ItemCard({ item, onSell, compact = false }: ItemCardProps) {
         <div className="affix-line">
           <Gem size={14} aria-hidden="true" /> Affix: {formatLabel(item.affix.type)}{" "}
           {item.affix.value > 0 ? `+${item.affix.value}` : ""}
+        </div>
+      ) : null}
+
+      {matchingOrderLabels.length ? (
+        <div className="affix-line">
+          Matches: {matchingOrderLabels.join(", ")}
         </div>
       ) : null}
 

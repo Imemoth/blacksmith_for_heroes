@@ -4,15 +4,24 @@ import type { Rng, SystemContext } from "../rng/rng";
 import { defaultRng } from "../rng/rng";
 import { completeCraft, completeReadyCrafts, startCraft } from "../systems/craftSystem";
 import { sellItemToMarket } from "../systems/inventorySystem";
+import {
+  acceptGuildContract,
+  completeHeroCommission,
+  deliverItemToGuildContract,
+  dismissHeroCommission,
+  processOrderTimers
+} from "../systems/orderSystem";
 import { tickResources } from "../systems/resourceSystem";
 import { getFreeForgeSlot } from "./selectors";
 
 export function advanceGame(state: GameState, now: number, rng: Rng = defaultRng): GameState {
   const tickedState = tickResources(state, now);
-  return completeReadyCrafts(tickedState, {
+  const withCompletedCrafts = completeReadyCrafts(tickedState, {
     now,
     rng
   });
+
+  return processOrderTimers(withCompletedCrafts, { now, rng });
 }
 
 export function startCraftAction(
@@ -31,6 +40,40 @@ export function startCraftAction(
 
 export function sellItemAction(state: GameState, itemId: EntityId, now: number): GameState {
   return sellItemToMarket(state, itemId, now);
+}
+
+export function acceptGuildContractAction(
+  state: GameState,
+  contractId: EntityId,
+  now: number
+): GameState {
+  return acceptGuildContract(state, contractId, now);
+}
+
+export function deliverItemToGuildContractAction(
+  state: GameState,
+  itemId: EntityId,
+  contractId: EntityId,
+  context: SystemContext
+): GameState {
+  return deliverItemToGuildContract(state, itemId, contractId, context);
+}
+
+export function deliverItemToHeroCommissionAction(
+  state: GameState,
+  itemId: EntityId,
+  commissionId: EntityId,
+  context: SystemContext
+): GameState {
+  return completeHeroCommission(state, itemId, commissionId, context);
+}
+
+export function dismissHeroCommissionAction(
+  state: GameState,
+  commissionId: EntityId,
+  now: number
+): GameState {
+  return dismissHeroCommission(state, commissionId, now);
 }
 
 export function forceCompleteCraftAction(

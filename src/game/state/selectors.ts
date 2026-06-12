@@ -3,7 +3,15 @@ import { ITEM_TYPES } from "../../config/itemTypes.config";
 import { REPUTATION_LEVELS } from "../../config/reputation.config";
 import { TIERS } from "../../config/tiers.config";
 import type { EntityId } from "../../types/common.types";
-import type { GameState } from "../../types/gameState.types";
+import type { GameState, GuildContractState, HeroCommissionState } from "../../types/gameState.types";
+import type { ItemState } from "../../types/item.types";
+import {
+  canItemSatisfyGuildRequirement,
+  canItemSatisfyHeroCommission,
+  getActiveGuildContracts,
+  getActiveHeroCommissions
+} from "../systems/orderSystem";
+import { calculateReputationLevel } from "../systems/reputationSystem";
 
 export function getSwordBlueprint() {
   return BLUEPRINTS.find((blueprint) => blueprint.id === "bp_sword_base");
@@ -17,6 +25,40 @@ export function getInventoryItems(state: GameState) {
   return state.inventory.itemIds
     .map((itemId) => state.itemsById[itemId])
     .filter((item) => item !== undefined);
+}
+
+export function getOpenGuildContracts(state: GameState): GuildContractState[] {
+  return getActiveGuildContracts(state);
+}
+
+export function getOpenHeroCommissions(state: GameState): HeroCommissionState[] {
+  return getActiveHeroCommissions(state);
+}
+
+export function getMatchingGuildInventoryItems(
+  state: GameState,
+  contract: GuildContractState
+): ItemState[] {
+  return getInventoryItems(state).filter((item) => canItemSatisfyGuildRequirement(item, contract));
+}
+
+export function getMatchingHeroInventoryItems(
+  state: GameState,
+  commission: HeroCommissionState
+): ItemState[] {
+  return getInventoryItems(state).filter((item) => canItemSatisfyHeroCommission(item, commission));
+}
+
+export function getMatchingOrderLabelsForItem(state: GameState, item: ItemState): string[] {
+  const guildMatches = getOpenGuildContracts(state)
+    .filter((contract) => contract.status === "accepted")
+    .filter((contract) => canItemSatisfyGuildRequirement(item, contract))
+    .map((contract) => `${contract.guildName} contract`);
+  const heroMatches = getOpenHeroCommissions(state)
+    .filter((commission) => canItemSatisfyHeroCommission(item, commission))
+    .map((commission) => `${commission.heroName} commission`);
+
+  return [...guildMatches, ...heroMatches];
 }
 
 export function getLastCraftedItem(state: GameState) {
@@ -36,14 +78,6 @@ export function getActiveCraftForSlot(state: GameState, slotId: EntityId) {
 
 export function getCraftDisplayName(itemType: keyof typeof ITEM_TYPES) {
   return ITEM_TYPES[itemType].displayName;
-}
-
-export function calculateReputationLevel(reputationXp: number): number {
-  return REPUTATION_LEVELS.reduce(
-    (level, candidate) =>
-      reputationXp >= candidate.xpRequired ? candidate.level : level,
-    1
-  );
 }
 
 export function getNextReputationThreshold(state: GameState): number {
