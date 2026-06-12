@@ -17,6 +17,7 @@ export function DebugPanel({ store }: DebugPanelProps) {
         <Button variant="ghost" onClick={store.actions.addIron}>+10 Iron</Button>
         <Button variant="ghost" onClick={store.actions.addWood}>+10 Wood</Button>
         <Button variant="ghost" onClick={store.actions.addGold}>+100 Gold</Button>
+        <Button variant="ghost" onClick={store.actions.addReputation}>+100 Rep</Button>
         <Button variant="ghost" onClick={() => store.actions.forceCompleteCraft()} disabled={!hasCraft}>
           <Hammer size={16} aria-hidden="true" /> Force Complete
         </Button>

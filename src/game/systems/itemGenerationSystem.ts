@@ -1,7 +1,7 @@
 import { AFFIXES } from "../../config/affixes.config";
 import { BLUEPRINTS } from "../../config/blueprints.config";
 import { ITEM_TYPES } from "../../config/itemTypes.config";
-import { RARITIES } from "../../config/rarities.config";
+import { POLISHING_KIT_I_RARITIES, RARITIES } from "../../config/rarities.config";
 import { LEGENDARY_NAMES } from "../../content/legendaryNames.config";
 import type { AffixType, ItemType, Rarity } from "../../types/common.types";
 import type { ItemState } from "../../types/item.types";
@@ -9,6 +9,7 @@ import type { GameState } from "../../types/gameState.types";
 import { createId } from "../../utils/ids";
 import { clamp } from "../../utils/math";
 import type { SystemContext } from "../rng/rng";
+import { getEffectiveBlueprintLevelBonus } from "./blueprintSystem";
 
 export function generateItem(
   state: GameState,
@@ -26,14 +27,14 @@ export function generateItem(
   const randomRoll = Math.floor(context.rng.nextFloat() * 4);
   const forgeTierBonus = getForgeTierLevelBonus(state.workshop.forgeTier);
   const rawLevel =
-    blueprint.baseLevelBonus +
+    getEffectiveBlueprintLevelBonus(blueprint) +
     forgeTierBonus +
     state.workshop.itemLevelMinBonus +
     randomRoll;
   const level = Math.floor(clamp(rawLevel, 1, state.workshop.maxItemLevelCap));
   const rarity = rollRarity(state, context);
   const rarityConfig = RARITIES[rarity];
-  const affix = rollAffix(blueprint.itemType, rarity, context);
+  const affix = rollAffix(blueprint.itemType, rarity, context, blueprint.allowedAffixes);
   const affixPowerBonus = getAffixPowerBonus(affix?.type);
   const power = Math.floor(
     level * itemTypeConfig.typeMultiplier * rarityConfig.powerMultiplier + affixPowerBonus
@@ -58,15 +59,19 @@ export function generateItem(
 }
 
 export function rollRarity(state: GameState, context: SystemContext): Rarity {
+  const chanceTable = state.workshop.rarityBonusTier > 0 ? POLISHING_KIT_I_RARITIES : undefined;
   const rarityEntries = Object.values(RARITIES).filter((rarityConfig) => {
     if (rarityConfig.rarity !== "legendary") return true;
     return state.workshop.forgeTier >= (rarityConfig.minTier ?? 3);
-  });
-  const total = rarityEntries.reduce((sum, entry) => sum + entry.baseChance, 0);
+  }).map((rarityConfig) => ({
+    rarity: rarityConfig.rarity,
+    chance: chanceTable?.[rarityConfig.rarity] ?? rarityConfig.baseChance
+  }));
+  const total = rarityEntries.reduce((sum, entry) => sum + entry.chance, 0);
   let roll = context.rng.nextFloat() * total;
 
   for (const entry of rarityEntries) {
-    roll -= entry.baseChance;
+    roll -= entry.chance;
     if (roll <= 0) return entry.rarity;
   }
 
@@ -100,13 +105,16 @@ export function generateItemName(
 function rollAffix(
   itemType: ItemType,
   rarity: Rarity,
-  context: SystemContext
+  context: SystemContext,
+  allowedAffixes?: readonly AffixType[]
 ): { type: AffixType; value: number } | undefined {
   if (rarity === "common") return undefined;
   if (rarity === "fine" && context.rng.nextFloat() > 0.25) return undefined;
 
-  const validAffixes = Object.values(AFFIXES).filter((affixConfig) =>
-    (affixConfig.validItemTypes as readonly ItemType[]).includes(itemType)
+  const validAffixes = Object.values(AFFIXES).filter(
+    (affixConfig) =>
+      (affixConfig.validItemTypes as readonly ItemType[]).includes(itemType) &&
+      (!allowedAffixes || allowedAffixes.includes(affixConfig.type))
   );
   const selected = validAffixes[Math.floor(context.rng.nextFloat() * validAffixes.length)];
 

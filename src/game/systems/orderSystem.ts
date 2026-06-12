@@ -1,4 +1,3 @@
-import { BLUEPRINTS } from "../../config/blueprints.config";
 import { TIMING_CONFIG } from "../../config/timing.config";
 import { GUILD_CONTRACT_TEMPLATES } from "../../content/guildContractTemplates.config";
 import { GUILD_NAME_POOL } from "../../content/guildNames.config";
@@ -22,6 +21,7 @@ import type {
 import { createId } from "../../utils/ids";
 import { defaultRng, type SystemContext } from "../rng/rng";
 import { pickWeighted } from "../rng/weightedRandom";
+import { isBlueprintUnlockedForShop } from "./blueprintSystem";
 import { addLogEntry } from "./eventLogSystem";
 import { addReputation } from "./reputationSystem";
 
@@ -641,14 +641,7 @@ export function getHeroArrivalIntervalMs(state: GameState): number {
 }
 
 export function isBlueprintShopAvailable(state: GameState, blueprintId: EntityId): boolean {
-  const blueprint = BLUEPRINTS.find((candidate) => candidate.id === blueprintId);
-  if (!blueprint) return false;
-  if (state.blueprints.ownedBlueprintIds.includes(blueprintId)) return false;
-
-  return (
-    blueprint.requiredRepLevel <= state.player.reputationLevel &&
-    blueprint.requiredForgeTier <= state.workshop.forgeTier
-  );
+  return isBlueprintUnlockedForShop(state, blueprintId);
 }
 
 export function isContentUnlocked(entry: { unlock?: UnlockScope }, context: ContentContext): boolean {
