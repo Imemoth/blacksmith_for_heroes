@@ -8,6 +8,7 @@ import { defaultRng } from "../rng/rng";
 import { applyOfflineProgress } from "./offlineProgressSystem";
 import { initializeOrderState } from "./orderSystem";
 import { calculateReputationLevel } from "./reputationSystem";
+import { applyOwnedUpgradeEffects } from "./upgradeSystem";
 
 export const SAVE_KEY = "blacksmith_for_heroes_save";
 export const CURRENT_SAVE_VERSION = 1;
@@ -61,6 +62,7 @@ export function migrateSave(save: SaveGame): SaveGame {
 }
 
 export function repairLoadedState(state: GameState, now: number): GameState {
+  const initialState = createInitialGameState(now);
   const inventoryItemIds = state.inventory.itemIds.filter((itemId) => Boolean(state.itemsById[itemId]));
   const ownedBlueprintIds = state.blueprints.ownedBlueprintIds.includes("bp_sword_base")
     ? state.blueprints.ownedBlueprintIds
@@ -71,7 +73,7 @@ export function repairLoadedState(state: GameState, now: number): GameState {
           ? { ...slot, activeCraftId: undefined }
           : slot
       )
-    : createInitialGameState(now).workshop.forgeSlots;
+    : initialState.workshop.forgeSlots;
   const tierConfig =
     TIERS[state.workshop.forgeTier as keyof typeof TIERS] ?? TIERS[1];
 
@@ -103,6 +105,10 @@ export function repairLoadedState(state: GameState, now: number): GameState {
     blueprints: {
       ownedBlueprintIds
     },
+    upgrades: {
+      ownedUpgradeIds: state.upgrades?.ownedUpgradeIds ?? [],
+      ownedPrestigeUpgradeIds: state.upgrades?.ownedPrestigeUpgradeIds ?? []
+    },
     log: {
       entries: state.log?.entries ?? [],
       maxEntries: state.log?.maxEntries ?? 200
@@ -114,7 +120,7 @@ export function repairLoadedState(state: GameState, now: number): GameState {
     lastSavedAt: Math.min(state.lastSavedAt, now)
   };
 
-  return initializeOrderState(repairedState, { now, rng: defaultRng });
+  return initializeOrderState(applyOwnedUpgradeEffects(repairedState), { now, rng: defaultRng });
 }
 
 function prepareStateForSave(state: GameState, now: number): GameState {

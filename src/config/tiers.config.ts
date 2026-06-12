@@ -26,7 +26,7 @@ export const TIERS = {
     requirements: {
       completedOrdersTotal: 25,
       craftedEpicCount: 1,
-      upgradeOwned: "reinforced_forge"
+      requiredCurrentTier: 2
     }
   }
 } as const;

@@ -1,31 +1,55 @@
 import { useState } from "react";
 import { ForgeTab } from "../features/forge/ForgeTab";
 import { OrdersTab } from "../features/orders/OrdersTab";
+import { ShopTab } from "../features/shop/ShopTab";
+import { WorkshopTab } from "../features/workshop/WorkshopTab";
 import { useGameStore } from "../game/state/gameStore";
+
+type ActiveTab = "forge" | "orders" | "shop" | "workshop";
 
 export function App() {
   const store = useGameStore();
-  const [activeTab, setActiveTab] = useState<"forge" | "orders">("forge");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("forge");
 
   return (
     <main className="app-shell">
       <nav className="main-tabs" aria-label="Game tabs">
-        <button
-          className={activeTab === "forge" ? "tab-button active" : "tab-button"}
-          type="button"
-          onClick={() => setActiveTab("forge")}
-        >
-          Forge
-        </button>
-        <button
-          className={activeTab === "orders" ? "tab-button active" : "tab-button"}
-          type="button"
-          onClick={() => setActiveTab("orders")}
-        >
-          Orders
-        </button>
+        <TabButton activeTab={activeTab} tab="forge" onSelect={setActiveTab} label="Forge" />
+        <TabButton activeTab={activeTab} tab="orders" onSelect={setActiveTab} label="Orders" />
+        <TabButton activeTab={activeTab} tab="shop" onSelect={setActiveTab} label="Shop" />
+        <TabButton
+          activeTab={activeTab}
+          tab="workshop"
+          onSelect={setActiveTab}
+          label="Workshop"
+        />
       </nav>
-      {activeTab === "forge" ? <ForgeTab store={store} /> : <OrdersTab store={store} />}
+      {activeTab === "forge" ? <ForgeTab store={store} /> : null}
+      {activeTab === "orders" ? <OrdersTab store={store} /> : null}
+      {activeTab === "shop" ? <ShopTab store={store} /> : null}
+      {activeTab === "workshop" ? <WorkshopTab store={store} /> : null}
     </main>
+  );
+}
+
+function TabButton({
+  activeTab,
+  tab,
+  onSelect,
+  label
+}: {
+  activeTab: ActiveTab;
+  tab: ActiveTab;
+  onSelect: (tab: ActiveTab) => void;
+  label: string;
+}) {
+  return (
+    <button
+      className={activeTab === tab ? "tab-button active" : "tab-button"}
+      type="button"
+      onClick={() => onSelect(tab)}
+    >
+      {label}
+    </button>
   );
 }

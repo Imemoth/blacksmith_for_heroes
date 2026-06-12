@@ -31,8 +31,8 @@ export function canStartCraft(
 
   if (!freeSlot) return { ok: false, reason: "No free forge slot" };
 
-  const itemTypeConfig = ITEM_TYPES[blueprint.itemType];
-  if (!canSpendResources(state, itemTypeConfig.baseCost)) {
+  const cost = calculateCraftCost(blueprintId);
+  if (!canSpendResources(state, cost)) {
     return { ok: false, reason: "Not enough materials" };
   }
   if (state.inventory.itemIds.length >= state.inventory.maxSlots) {
@@ -60,9 +60,8 @@ export function startCraft(
   }
 
   const itemTypeConfig = ITEM_TYPES[blueprint.itemType];
-  const durationSeconds = Math.ceil(
-    itemTypeConfig.baseCraftTimeSeconds / state.workshop.craftSpeedMultiplier
-  );
+  const cost = calculateCraftCost(blueprintId);
+  const durationSeconds = calculateCraftDurationSeconds(state, blueprintId);
   const craftId = createId("craft");
   const activeCraft = {
     craftId,
@@ -71,9 +70,9 @@ export function startCraft(
     startedAt: context.now,
     completesAt: context.now + durationSeconds * 1000,
     durationSeconds,
-    inputMaterials: itemTypeConfig.baseCost
+    inputMaterials: cost
   };
-  const stateAfterSpend = spendResources(state, itemTypeConfig.baseCost);
+  const stateAfterSpend = spendResources(state, cost);
   const nextState: GameState = {
     ...stateAfterSpend,
     workshop: {
@@ -166,4 +165,32 @@ export function completeReadyCrafts(state: GameState, context: SystemContext): G
   return Object.values(state.workshop.activeCraftsById)
     .filter((craft) => craft.completesAt <= context.now)
     .reduce((nextState, craft) => completeCraft(nextState, craft.craftId, context), state);
+}
+
+export function calculateCraftCost(blueprintId: string): { ironOre: number; wood: number } {
+  const blueprint = BLUEPRINTS.find((candidate) => candidate.id === blueprintId);
+  if (!blueprint) throw new Error("Blueprint not found");
+  if (blueprint.itemType === "any") throw new Error("Cannot craft generic blueprint directly");
+
+  const itemTypeConfig = ITEM_TYPES[blueprint.itemType];
+  const multiplier = blueprint.materialCostMultiplier ?? 1;
+
+  return {
+    ironOre: Math.ceil(itemTypeConfig.baseCost.ironOre * multiplier),
+    wood: Math.ceil(itemTypeConfig.baseCost.wood * multiplier)
+  };
+}
+
+export function calculateCraftDurationSeconds(state: GameState, blueprintId: string): number {
+  const blueprint = BLUEPRINTS.find((candidate) => candidate.id === blueprintId);
+  if (!blueprint) throw new Error("Blueprint not found");
+  if (blueprint.itemType === "any") throw new Error("Cannot craft generic blueprint directly");
+
+  const itemTypeConfig = ITEM_TYPES[blueprint.itemType];
+  const blueprintTimeMultiplier = blueprint.craftTimeMultiplier ?? 1;
+
+  return Math.ceil(
+    (itemTypeConfig.baseCraftTimeSeconds * blueprintTimeMultiplier) /
+      state.workshop.craftSpeedMultiplier
+  );
 }
