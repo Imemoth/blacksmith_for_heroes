@@ -1,6 +1,10 @@
 import type { GameState } from "../../types/gameState.types";
 import { formatResource } from "../../utils/format";
-import { getNextReputationThreshold, getTierName } from "../../game/state/selectors";
+import {
+  getCurrentReputationTitle,
+  getNextReputationThreshold,
+  getTierName
+} from "../../game/state/selectors";
 
 type TopResourceBarProps = {
   state: GameState;
@@ -19,7 +23,7 @@ export function TopResourceBar({ state }: TopResourceBarProps) {
       <ResourceChip label="Wood" value={formatResource(state.resources.wood, state.resources.woodCap)} />
       <ResourceChip
         label="Rep"
-        value={`${formatResource(state.player.reputationXp)}/${formatResource(nextRepThreshold)}`}
+        value={`${formatResource(state.player.reputationXp)}/${formatResource(nextRepThreshold)} - ${getCurrentReputationTitle(state)}`}
       />
       <ResourceChip label="Tier" value={`${state.workshop.forgeTier} - ${getTierName(state)}`} />
     </section>

@@ -2,16 +2,20 @@ import { BLUEPRINTS } from "../../config/blueprints.config";
 import { ITEM_TYPES } from "../../config/itemTypes.config";
 import { REPUTATION_LEVELS } from "../../config/reputation.config";
 import { TIERS } from "../../config/tiers.config";
+import type { BlueprintConfig } from "../../types/blueprint.types";
 import type { EntityId } from "../../types/common.types";
 import type { GameState, GuildContractState, HeroCommissionState } from "../../types/gameState.types";
 import type { ItemState } from "../../types/item.types";
+import { getBlueprintPurchaseStates, getEffectiveBlueprintLevelBonus } from "../systems/blueprintSystem";
+import { calculateCraftCost, calculateCraftDurationSeconds } from "../systems/craftSystem";
 import {
   canItemSatisfyGuildRequirement,
   canItemSatisfyHeroCommission,
   getActiveGuildContracts,
   getActiveHeroCommissions
 } from "../systems/orderSystem";
-import { calculateReputationLevel } from "../systems/reputationSystem";
+import { getTierUpgradeStates } from "../systems/tierSystem";
+import { getUpgradePurchaseStates } from "../systems/upgradeSystem";
 
 export function getSwordBlueprint() {
   return BLUEPRINTS.find((blueprint) => blueprint.id === "bp_sword_base");
@@ -80,10 +84,34 @@ export function getCraftDisplayName(itemType: keyof typeof ITEM_TYPES) {
   return ITEM_TYPES[itemType].displayName;
 }
 
+export function getOwnedCraftableBlueprints(state: GameState): BlueprintConfig[] {
+  return BLUEPRINTS.filter(
+    (blueprint) =>
+      blueprint.itemType !== "any" &&
+      state.blueprints.ownedBlueprintIds.includes(blueprint.id)
+  );
+}
+
+export function getCraftCostDisplay(blueprintId: EntityId): string {
+  const cost = calculateCraftCost(blueprintId);
+  return `${cost.ironOre} Iron Ore + ${cost.wood} Wood`;
+}
+
+export function getCraftDurationDisplay(state: GameState, blueprintId: EntityId): string {
+  return `${calculateCraftDurationSeconds(state, blueprintId)}s`;
+}
+
 export function getNextReputationThreshold(state: GameState): number {
   return (
     REPUTATION_LEVELS.find((level) => level.xpRequired > state.player.reputationXp)
       ?.xpRequired ?? REPUTATION_LEVELS[REPUTATION_LEVELS.length - 1].xpRequired
+  );
+}
+
+export function getCurrentReputationTitle(state: GameState): string {
+  return (
+    REPUTATION_LEVELS.find((level) => level.level === state.player.reputationLevel)?.title ??
+    "Unknown"
   );
 }
 
@@ -96,7 +124,7 @@ export function getBlueprintLevelRange(state: GameState, blueprintId: EntityId) 
   if (!blueprint || blueprint.itemType === "any") return undefined;
 
   const base =
-    blueprint.baseLevelBonus +
+    getEffectiveBlueprintLevelBonus(blueprint) +
     getForgeTierLevelBonus(state.workshop.forgeTier) +
     state.workshop.itemLevelMinBonus;
 
@@ -108,6 +136,22 @@ export function getBlueprintLevelRange(state: GameState, blueprintId: EntityId) 
 
 export function isLegendaryEnabled(state: GameState): boolean {
   return Boolean(TIERS[state.workshop.forgeTier as keyof typeof TIERS]?.legendaryEnabled);
+}
+
+export function getBlueprintShopEntries(state: GameState) {
+  return getBlueprintPurchaseStates(state);
+}
+
+export function getWorkshopUpgradeEntries(state: GameState) {
+  return getUpgradePurchaseStates(state);
+}
+
+export function getForgeTierUpgradeEntries(state: GameState) {
+  return getTierUpgradeStates(state);
+}
+
+export function getCurrentTierConfig(state: GameState) {
+  return TIERS[state.workshop.forgeTier as keyof typeof TIERS] ?? TIERS[1];
 }
 
 function getForgeTierLevelBonus(forgeTier: number): number {

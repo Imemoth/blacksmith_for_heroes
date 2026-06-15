@@ -1,6 +1,6 @@
 import type { BlueprintConfig } from "../types/blueprint.types";
 
-export const BLUEPRINTS = [
+export const BLUEPRINTS: BlueprintConfig[] = [
   {
     id: "bp_sword_base",
     name: "Sword Blueprint",
@@ -56,6 +56,45 @@ export const BLUEPRINTS = [
     craftTimeMultiplier: 1.1
   },
   {
+    id: "bp_hunter_bow_pattern",
+    name: "Hunter Bow Pattern",
+    itemType: "bow",
+    kind: "advanced",
+    goldCost: 450,
+    requiredRepLevel: 2,
+    requiredForgeTier: 2,
+    baseLevelBonus: 1,
+    allowedAffixes: ["balanced", "precise"],
+    materialCostMultiplier: 1.2,
+    craftTimeMultiplier: 1.1
+  },
+  {
+    id: "bp_apprentice_staff_pattern",
+    name: "Apprentice Staff Pattern",
+    itemType: "staff",
+    kind: "advanced",
+    goldCost: 650,
+    requiredRepLevel: 3,
+    requiredForgeTier: 2,
+    baseLevelBonus: 2,
+    allowedAffixes: ["balanced", "arcane"],
+    materialCostMultiplier: 1.25,
+    craftTimeMultiplier: 1.15
+  },
+  {
+    id: "bp_heavy_axe_pattern",
+    name: "Heavy Axe Pattern",
+    itemType: "axe",
+    kind: "advanced",
+    goldCost: 850,
+    requiredRepLevel: 4,
+    requiredForgeTier: 2,
+    baseLevelBonus: 2,
+    allowedAffixes: ["sharp", "heavy"],
+    materialCostMultiplier: 1.25,
+    craftTimeMultiplier: 1.15
+  },
+  {
     id: "bp_masterwork_frame",
     name: "Masterwork Frame",
     itemType: "any",
@@ -65,4 +104,4 @@ export const BLUEPRINTS = [
     requiredForgeTier: 3,
     baseLevelBonus: 0
   }
-] as const satisfies BlueprintConfig[];
+];

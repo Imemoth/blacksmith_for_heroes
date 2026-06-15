@@ -10,16 +10,24 @@ import {
   deliverItemToHeroCommissionAction,
   dismissHeroCommissionAction,
   forceCompleteCraftAction,
+  grantDebugReputation,
   grantDebugResources,
+  purchaseBlueprintAction,
+  purchaseWorkshopUpgradeAction,
   sellItemAction,
-  startCraftAction
+  startCraftAction,
+  upgradeForgeTierAction
 } from "./actions";
 import { clearSave, loadGame, saveGame } from "../systems/saveSystem";
 
 type GameStoreActions = {
   tick: () => void;
+  startCraft: (blueprintId: EntityId) => void;
   startSwordCraft: () => void;
   sellItem: (itemId: EntityId) => void;
+  purchaseBlueprint: (blueprintId: EntityId) => void;
+  purchaseWorkshopUpgrade: (upgradeId: EntityId) => void;
+  upgradeForgeTier: (targetTier: number) => void;
   acceptGuildContract: (contractId: EntityId) => void;
   deliverItemToGuildContract: (itemId: EntityId, contractId: EntityId) => void;
   deliverItemToHeroCommission: (itemId: EntityId, commissionId: EntityId) => void;
@@ -30,6 +38,7 @@ type GameStoreActions = {
   addIron: () => void;
   addWood: () => void;
   addGold: () => void;
+  addReputation: () => void;
   resetSave: () => void;
   saveNow: () => void;
 };
@@ -102,6 +111,16 @@ export function useGameStore(): GameStore {
           return nextState;
         });
       },
+      startCraft: (blueprintId) => {
+        applyStateUpdate(
+          (previousState, now) =>
+            startCraftAction(previousState, blueprintId, {
+              now,
+              rng: defaultRng
+            }),
+          { saveAfter: true }
+        );
+      },
       startSwordCraft: () => {
         applyStateUpdate(
           (previousState, now) =>
@@ -116,6 +135,24 @@ export function useGameStore(): GameStore {
         applyStateUpdate((previousState, now) => sellItemAction(previousState, itemId, now), {
           saveAfter: true
         });
+      },
+      purchaseBlueprint: (blueprintId) => {
+        applyStateUpdate(
+          (previousState, now) => purchaseBlueprintAction(previousState, blueprintId, now),
+          { saveAfter: true }
+        );
+      },
+      purchaseWorkshopUpgrade: (upgradeId) => {
+        applyStateUpdate(
+          (previousState, now) => purchaseWorkshopUpgradeAction(previousState, upgradeId, now),
+          { saveAfter: true }
+        );
+      },
+      upgradeForgeTier: (targetTier) => {
+        applyStateUpdate(
+          (previousState, now) => upgradeForgeTierAction(previousState, targetTier, now),
+          { saveAfter: true }
+        );
       },
       acceptGuildContract: (contractId) => {
         applyStateUpdate(
@@ -172,6 +209,12 @@ export function useGameStore(): GameStore {
         applyStateUpdate((previousState) => grantDebugResources(previousState, { gold: 100 }), {
           saveAfter: true
         });
+      },
+      addReputation: () => {
+        applyStateUpdate(
+          (previousState, now) => grantDebugReputation(previousState, 100, now),
+          { saveAfter: true }
+        );
       },
       resetSave: () => {
         const now = Date.now();

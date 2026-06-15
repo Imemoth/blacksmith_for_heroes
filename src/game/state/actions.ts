@@ -2,6 +2,7 @@ import type { EntityId } from "../../types/common.types";
 import type { GameState } from "../../types/gameState.types";
 import type { Rng, SystemContext } from "../rng/rng";
 import { defaultRng } from "../rng/rng";
+import { purchaseBlueprint } from "../systems/blueprintSystem";
 import { completeCraft, completeReadyCrafts, startCraft } from "../systems/craftSystem";
 import { sellItemToMarket } from "../systems/inventorySystem";
 import {
@@ -11,7 +12,10 @@ import {
   dismissHeroCommission,
   processOrderTimers
 } from "../systems/orderSystem";
+import { addReputation } from "../systems/reputationSystem";
 import { tickResources } from "../systems/resourceSystem";
+import { upgradeTier } from "../systems/tierSystem";
+import { purchaseUpgrade } from "../systems/upgradeSystem";
 import { getFreeForgeSlot } from "./selectors";
 
 export function advanceGame(state: GameState, now: number, rng: Rng = defaultRng): GameState {
@@ -40,6 +44,30 @@ export function startCraftAction(
 
 export function sellItemAction(state: GameState, itemId: EntityId, now: number): GameState {
   return sellItemToMarket(state, itemId, now);
+}
+
+export function purchaseBlueprintAction(
+  state: GameState,
+  blueprintId: EntityId,
+  now: number
+): GameState {
+  return purchaseBlueprint(state, blueprintId, now);
+}
+
+export function purchaseWorkshopUpgradeAction(
+  state: GameState,
+  upgradeId: EntityId,
+  now: number
+): GameState {
+  return purchaseUpgrade(state, upgradeId, now);
+}
+
+export function upgradeForgeTierAction(
+  state: GameState,
+  targetTier: number,
+  now: number
+): GameState {
+  return upgradeTier(state, targetTier, now);
 }
 
 export function acceptGuildContractAction(
@@ -118,4 +146,8 @@ export function grantDebugResources(
       wood: Math.min(state.resources.woodCap, state.resources.wood + (resources.wood ?? 0))
     }
   };
+}
+
+export function grantDebugReputation(state: GameState, amount: number, now: number): GameState {
+  return addReputation(state, amount, now);
 }

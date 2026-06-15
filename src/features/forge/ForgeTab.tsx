@@ -2,16 +2,18 @@ import { Hammer, Package, Play } from "lucide-react";
 import { Button } from "../../components/common/Button";
 import { ItemCard } from "../../components/game/ItemCard";
 import { TopResourceBar } from "../../components/game/TopResourceBar";
-import { BLUEPRINTS } from "../../config/blueprints.config";
 import { ITEM_TYPES } from "../../config/itemTypes.config";
 import { canStartCraft } from "../../game/systems/craftSystem";
 import type { GameStore } from "../../game/state/gameStore";
 import {
   getActiveCraftForSlot,
+  getCraftCostDisplay,
+  getCraftDurationDisplay,
   getBlueprintLevelRange,
   getInventoryItems,
   getLastCraftedItem,
   getMatchingOrderLabelsForItem,
+  getOwnedCraftableBlueprints,
   isLegendaryEnabled
 } from "../../game/state/selectors";
 import { formatResource } from "../../utils/format";
@@ -26,10 +28,7 @@ type ForgeTabProps = {
 export function ForgeTab({ store }: ForgeTabProps) {
   const { state, actions, lastError } = store;
   const now = Date.now();
-  const swordBlueprint = BLUEPRINTS.find((blueprint) => blueprint.id === "bp_sword_base")!;
-  const swordConfig = ITEM_TYPES.sword;
-  const canCraftSword = canStartCraft(state, swordBlueprint.id);
-  const levelRange = getBlueprintLevelRange(state, swordBlueprint.id);
+  const craftableBlueprints = getOwnedCraftableBlueprints(state);
   const inventoryItems = getInventoryItems(state);
   const lastCraftedItem = getLastCraftedItem(state);
   const legendaryState = isLegendaryEnabled(state) ? "Legendary enabled" : "Legendary locked";
@@ -66,45 +65,60 @@ export function ForgeTab({ store }: ForgeTabProps) {
 
           <section className="panel">
             <h2 className="panel-title">Craft Options</h2>
-            <article className="craft-card">
-              <div className="craft-row">
-                <div>
-                  <div className="slot-name">{swordBlueprint.name.replace(" Blueprint", "")}</div>
-                  <div className="muted">Owned by default</div>
-                </div>
-                <Button onClick={actions.startSwordCraft} disabled={!canCraftSword.ok}>
-                  <Play size={16} aria-hidden="true" /> Start Craft
-                </Button>
-              </div>
+            <div className="craft-options-list">
+              {craftableBlueprints.map((blueprint) => {
+                if (blueprint.itemType === "any") return null;
 
-              <dl className="stat-list">
-                <div>
-                  <dt>Cost</dt>
-                  <dd>
-                    {swordConfig.baseCost.ironOre} Iron Ore + {swordConfig.baseCost.wood} Wood
-                  </dd>
-                </div>
-                <div>
-                  <dt>Time</dt>
-                  <dd>{swordConfig.baseCraftTimeSeconds}s</dd>
-                </div>
-                <div>
-                  <dt>Expected Level</dt>
-                  <dd>
-                    {levelRange ? `${levelRange.min}-${levelRange.max}` : "Unavailable"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Tier State</dt>
-                  <dd>
-                    Tier {state.workshop.forgeTier}, {legendaryState}
-                  </dd>
-                </div>
-              </dl>
+                const itemTypeConfig = ITEM_TYPES[blueprint.itemType];
+                const canCraft = canStartCraft(state, blueprint.id);
+                const levelRange = getBlueprintLevelRange(state, blueprint.id);
 
-              {!canCraftSword.ok ? <div className="notice">{canCraftSword.reason}</div> : null}
+                return (
+                  <article className="craft-card" key={blueprint.id}>
+                    <div className="craft-row">
+                      <div>
+                        <div className="slot-name">{blueprint.name}</div>
+                        <div className="muted">
+                          {itemTypeConfig.displayName} - {blueprint.kind}
+                        </div>
+                      </div>
+                      <Button onClick={() => actions.startCraft(blueprint.id)} disabled={!canCraft.ok}>
+                        <Play size={16} aria-hidden="true" /> Start Craft
+                      </Button>
+                    </div>
+
+                    <dl className="stat-list">
+                      <div>
+                        <dt>Cost</dt>
+                        <dd>{getCraftCostDisplay(blueprint.id)}</dd>
+                      </div>
+                      <div>
+                        <dt>Time</dt>
+                        <dd>{getCraftDurationDisplay(state, blueprint.id)}</dd>
+                      </div>
+                      <div>
+                        <dt>Expected Level</dt>
+                        <dd>
+                          {levelRange ? `${levelRange.min}-${levelRange.max}` : "Unavailable"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Tier State</dt>
+                        <dd>
+                          Tier {state.workshop.forgeTier}, {legendaryState}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {!canCraft.ok ? <div className="notice">{canCraft.reason}</div> : null}
+                  </article>
+                );
+              })}
               {lastError ? <div className="notice">{lastError}</div> : null}
-            </article>
+              {!craftableBlueprints.length ? (
+                <p className="muted">No craftable blueprints owned.</p>
+              ) : null}
+            </div>
           </section>
 
           <CraftResultPanel item={lastCraftedItem} onSell={actions.sellItem} />
@@ -154,10 +168,10 @@ export function ForgeTab({ store }: ForgeTabProps) {
           </section>
 
           <section className="panel">
-            <h2 className="panel-title">Milestone A Status</h2>
+            <h2 className="panel-title">Progression</h2>
             <p className="muted">
-              Rep is shown as {formatResource(state.player.reputationXp)}/100. Market sales give
-              Gold only.
+              Rep {state.player.reputationLevel}: {formatResource(state.player.reputationXp)} XP.
+              Max item level {state.workshop.maxItemLevelCap}.
             </p>
           </section>
 
