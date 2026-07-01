@@ -1,7 +1,7 @@
 import { BLUEPRINTS } from "../../config/blueprints.config";
 import type { BlueprintConfig } from "../../types/blueprint.types";
 import type { EntityId } from "../../types/common.types";
-import type { GameState } from "../../types/gameState.types";
+import type { GameState, HeroCommissionState } from "../../types/gameState.types";
 import { addLogEntry } from "./eventLogSystem";
 import { canSpendResources, spendResources } from "./resourceSystem";
 
@@ -110,7 +110,7 @@ export function purchaseBlueprint(
     }
   };
 
-  return addLogEntry(nextState, {
+  return addLogEntry(activateWaitingHeroCommissionsForBlueprint(nextState, blueprintId, now), {
     type: "blueprint_purchased",
     text: `Purchased ${blueprint.name} for ${blueprint.goldCost} Gold.`,
     createdAt: now
@@ -120,4 +120,41 @@ export function purchaseBlueprint(
 export function getEffectiveBlueprintLevelBonus(blueprint: BlueprintConfig): number {
   if (blueprint.kind === "advanced") return 1 + blueprint.baseLevelBonus;
   return blueprint.baseLevelBonus;
+}
+
+function activateWaitingHeroCommissionsForBlueprint(
+  state: GameState,
+  blueprintId: EntityId,
+  now: number
+): GameState {
+  let changed = false;
+  const heroCommissionsById: Record<EntityId, HeroCommissionState> = {};
+
+  for (const [commissionId, commission] of Object.entries(state.orders.heroCommissionsById)) {
+    if (
+      commission.status !== "waiting_for_blueprint" ||
+      commission.requiredBlueprintId !== blueprintId ||
+      commission.expiresAt <= now
+    ) {
+      heroCommissionsById[commissionId] = commission;
+      continue;
+    }
+
+    changed = true;
+    heroCommissionsById[commissionId] = {
+      ...commission,
+      status: "active",
+      isMissingBlueprintCommission: false
+    };
+  }
+
+  if (!changed) return state;
+
+  return {
+    ...state,
+    orders: {
+      ...state.orders,
+      heroCommissionsById
+    }
+  };
 }

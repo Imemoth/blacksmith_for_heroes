@@ -9,6 +9,7 @@ import {
   expireHeroCommissions,
   generateGuildContract,
   generateHeroCommission,
+  getScaledOrderLevelBand,
   getHeroArrivalIntervalMs,
   initializeOrderState,
   rotateOfferedGuildContracts,
@@ -172,6 +173,25 @@ describe("orderSystem guild contracts", () => {
     }
   });
 
+  it("scales generated guild min level with Rep and Tier", () => {
+    const state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 4, reputationXp: 625 },
+      workshop: { ...emptyOrdersState(0).workshop, forgeTier: 2, maxItemLevelCap: 15 },
+      blueprints: {
+        ownedBlueprintIds: ["bp_sword_base", "bp_bow_base", "bp_staff_base", "bp_axe_base"]
+      }
+    };
+    const contract = generateGuildContract(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0, 0, 0.999])
+    });
+
+    expect(getScaledOrderLevelBand(state)).toEqual([7, 12]);
+    expect(contract?.minLevel).toBe(12);
+    expect(contract?.minLevel).toBeLessThanOrEqual(state.workshop.maxItemLevelCap);
+  });
+
   it("applies Rep, Tier, city and weighted eligibility filters", () => {
     const state = {
       ...emptyOrdersState(0),
@@ -312,6 +332,44 @@ describe("orderSystem hero commissions", () => {
       status: "waiting_for_blueprint",
       isMissingBlueprintCommission: true
     });
+  });
+
+  it("scales generated hero min level and caps it to current max item level", () => {
+    const tierTwoState = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 5, reputationXp: 1650 },
+      workshop: { ...emptyOrdersState(0).workshop, forgeTier: 2, maxItemLevelCap: 15 },
+      blueprints: {
+        ownedBlueprintIds: [
+          "bp_sword_base",
+          "bp_bow_base",
+          "bp_staff_base",
+          "bp_axe_base",
+          "bp_sword_basic_pattern"
+        ]
+      }
+    };
+    const tierThreeState = {
+      ...tierTwoState,
+      workshop: { ...tierTwoState.workshop, forgeTier: 3, maxItemLevelCap: 20 }
+    };
+    const tierTwoCommission = generateHeroCommission(tierTwoState, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0.999, 0, 0])
+    });
+    const tierThreeCommission = generateHeroCommission(tierThreeState, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0.999, 0, 0])
+    });
+
+    expect(getScaledOrderLevelBand(tierTwoState, true)).toEqual([10, 15]);
+    expect(tierTwoCommission?.templateId).toBe("hero_duelist_advanced_sword");
+    expect(tierTwoCommission?.minLevel).toBe(15);
+    expect(tierTwoCommission?.minLevel).toBeLessThanOrEqual(
+      tierTwoState.workshop.maxItemLevelCap
+    );
+    expect(getScaledOrderLevelBand(tierThreeState, true)).toEqual([14, 20]);
+    expect(tierThreeCommission?.minLevel).toBe(20);
   });
 
   it("does not generate unavailable blueprint heroes or a second missing-blueprint hero", () => {

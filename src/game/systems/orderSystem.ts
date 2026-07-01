@@ -1,3 +1,4 @@
+import { ORDER_LEVEL_BANDS } from "../../config/orderScaling.config";
 import { TIMING_CONFIG } from "../../config/timing.config";
 import { GUILD_CONTRACT_TEMPLATES } from "../../content/guildContractTemplates.config";
 import { GUILD_NAME_POOL } from "../../content/guildNames.config";
@@ -21,7 +22,7 @@ import type {
 import { createId } from "../../utils/ids";
 import { defaultRng, type SystemContext } from "../rng/rng";
 import { pickWeighted } from "../rng/weightedRandom";
-import { isBlueprintUnlockedForShop } from "./blueprintSystem";
+import { getBlueprintConfig, isBlueprintUnlockedForShop } from "./blueprintSystem";
 import { addLogEntry } from "./eventLogSystem";
 import { addReputation } from "./reputationSystem";
 
@@ -116,7 +117,7 @@ export function generateGuildContract(
     guildName: guildName?.name ?? "Oakvale Guild",
     guildType: template.guildType,
     requiredItems,
-    minLevel: rollIntegerRange(template.minLevelRange, context),
+    minLevel: rollScaledOrderMinLevel(state, isAdvancedGuildTemplate(template), context),
     goldReward: rollIntegerRange(template.goldRewardRange, context),
     reputationReward: rollIntegerRange(template.reputationRewardRange, context),
     status: "offered",
@@ -361,7 +362,7 @@ export function generateHeroCommission(
     heroClass: template.heroClass,
     requiredBlueprintId: template.requiredBlueprintId,
     requiredItemType: template.requiredItemType,
-    minLevel: rollIntegerRange(template.minLevelRange, context),
+    minLevel: rollScaledOrderMinLevel(state, isAdvancedHeroTemplate(template), context),
     preferredAffix: template.preferredAffix,
     bonusRarity: "bonusRarity" in template ? template.bonusRarity : undefined,
     goldRewardMultiplier: rollDecimalRange(template.goldMultiplierRange, context),
@@ -644,6 +645,29 @@ export function isBlueprintShopAvailable(state: GameState, blueprintId: EntityId
   return isBlueprintUnlockedForShop(state, blueprintId);
 }
 
+export function getScaledOrderLevelBand(
+  state: GameState,
+  isAdvancedOrder = false
+): readonly [number, number] {
+  const rawBand =
+    state.workshop.forgeTier >= 3 && isAdvancedOrder
+      ? ORDER_LEVEL_BANDS.tier3Advanced
+      : state.player.reputationLevel >= 5 && state.workshop.forgeTier >= 2
+        ? ORDER_LEVEL_BANDS.rep5Tier2Or3
+        : state.player.reputationLevel >= 4 && state.workshop.forgeTier >= 2
+          ? ORDER_LEVEL_BANDS.rep4Tier2
+          : state.player.reputationLevel >= 3
+            ? ORDER_LEVEL_BANDS.rep3Tier1Or2
+            : state.player.reputationLevel >= 2
+              ? ORDER_LEVEL_BANDS.rep2Tier1
+              : ORDER_LEVEL_BANDS.rep1Tier1;
+
+  const cappedMax = Math.max(1, Math.min(rawBand.max, state.workshop.maxItemLevelCap));
+  const cappedMin = Math.max(1, Math.min(rawBand.min, cappedMax));
+
+  return [cappedMin, cappedMax];
+}
+
 export function isContentUnlocked(entry: { unlock?: UnlockScope }, context: ContentContext): boolean {
   const unlock = entry.unlock;
   if (!unlock) return true;
@@ -683,6 +707,30 @@ function isHeroTemplateEligible(
   if (hasMissingBlueprintHero) return false;
 
   return isBlueprintShopAvailable(state, template.requiredBlueprintId);
+}
+
+function rollScaledOrderMinLevel(
+  state: GameState,
+  isAdvancedOrder: boolean,
+  context: SystemContext
+): number {
+  return rollIntegerRange(getScaledOrderLevelBand(state, isAdvancedOrder), context);
+}
+
+function isAdvancedGuildTemplate(template: GuildContractTemplate): boolean {
+  return (
+    template.requiredTier >= 3 ||
+    template.requiredOwnedBlueprints.some(
+      (blueprintId) => getBlueprintConfig(blueprintId)?.kind === "advanced"
+    )
+  );
+}
+
+function isAdvancedHeroTemplate(template: HeroCommissionTemplate): boolean {
+  return (
+    template.requiredTier >= 3 ||
+    getBlueprintConfig(template.requiredBlueprintId)?.kind === "advanced"
+  );
 }
 
 function pickWeightedContent<T extends WeightedContent>(

@@ -12,6 +12,7 @@ import {
   startCraft
 } from "../../src/game/systems/craftSystem";
 import { rollRarity } from "../../src/game/systems/itemGenerationSystem";
+import { completeHeroCommission, generateHeroCommission } from "../../src/game/systems/orderSystem";
 import { addReputation, calculateReputationLevel } from "../../src/game/systems/reputationSystem";
 import { canUpgradeTier, upgradeTier } from "../../src/game/systems/tierSystem";
 import { purchaseUpgrade } from "../../src/game/systems/upgradeSystem";
@@ -135,6 +136,66 @@ describe("blueprint shop", () => {
       const purchasedState = purchaseBlueprint(baseState, blueprintId, 1000);
       expect(canStartCraft(purchasedState, blueprintId)).toEqual({ ok: true });
     }
+  });
+
+  it("activates a waiting missing-blueprint hero after purchase and allows delivery", () => {
+    let state = withMaterials(withGold(withRep(makeTestGameState(0), 100), 500));
+    const commission = generateHeroCommission(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0, 0, 0])
+    })!;
+
+    state = {
+      ...state,
+      orders: {
+        ...state.orders,
+        heroCommissionsById: {
+          [commission.commissionId]: commission
+        },
+        activeHeroCommissionIds: [commission.commissionId]
+      }
+    };
+
+    expect(commission).toMatchObject({
+      requiredBlueprintId: "bp_bow_base",
+      status: "waiting_for_blueprint",
+      isMissingBlueprintCommission: true
+    });
+
+    const purchasedState = purchaseBlueprint(state, "bp_bow_base", 1000);
+    const activatedCommission =
+      purchasedState.orders.heroCommissionsById[commission.commissionId];
+
+    expect(activatedCommission.status).toBe("active");
+    expect(activatedCommission.isMissingBlueprintCommission).toBe(false);
+    expect(canStartCraft(purchasedState, "bp_bow_base")).toEqual({ ok: true });
+
+    const craftingState = startCraft(
+      purchasedState,
+      "bp_bow_base",
+      purchasedState.workshop.forgeSlots[0].slotId,
+      { now: 2000, rng: createTestRng([0]) }
+    );
+    const craft = Object.values(craftingState.workshop.activeCraftsById)[0];
+    const completedCraftState = completeCraft(craftingState, craft.craftId, {
+      now: 15_000,
+      rng: createTestRng([0.999, 0])
+    });
+    const itemId = completedCraftState.inventory.itemIds[0];
+    const item = completedCraftState.itemsById[itemId];
+    const deliveredState = completeHeroCommission(
+      completedCraftState,
+      itemId,
+      commission.commissionId,
+      { now: 16_000, rng: createTestRng([0]) }
+    );
+
+    expect(item.itemType).toBe("bow");
+    expect(item.level).toBeGreaterThanOrEqual(activatedCommission.minLevel);
+    expect(deliveredState.orders.heroCommissionsById[commission.commissionId].status).toBe(
+      "completed"
+    );
+    expect(deliveredState.itemsById[itemId].state).toBe("assigned_hero");
   });
 });
 
