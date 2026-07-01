@@ -148,6 +148,33 @@ export type PrestigeState = {
   completedPrestigeRuns: PrestigeRunRecord[];
 };
 
+export type AchievementState = {
+  unlockedAchievementIds: EntityId[];
+  unlockedAtById: Record<EntityId, TimestampMs>;
+};
+
+export type FeedbackRewardState = {
+  type: "reputation" | "ironOre" | "wood" | "none";
+  amount: number;
+};
+
+export type HeroFeedbackEventState = {
+  feedbackId: EntityId;
+  heroId: EntityId;
+  heroName: string;
+  commissionId: EntityId;
+  itemId: EntityId;
+  itemName: string;
+  text: string;
+  reward: FeedbackRewardState;
+  createdAt: TimestampMs;
+};
+
+export type FeedbackState = {
+  eventsById: Record<EntityId, HeroFeedbackEventState>;
+  pendingEventIds: EntityId[];
+};
+
 export type PrestigeRunRecord = {
   runId: EntityId;
   completedAt: TimestampMs;
@@ -179,6 +206,7 @@ export type EventLogEntry = {
     | "blueprint_purchased"
     | "upgrade_purchased"
     | "tier_upgraded"
+    | "achievement_unlocked"
     | "rep_level_up"
     | "legendary_crafted"
     | "inventory_full"
@@ -208,6 +236,8 @@ export type GameState = {
   orders: OrdersState;
   heroes: HeroRuntimeState;
   prestige: PrestigeState;
+  achievements: AchievementState;
+  feedback: FeedbackState;
   log: EventLogState;
   timers: TimerState;
   currentCityId: string;

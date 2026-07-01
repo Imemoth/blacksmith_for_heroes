@@ -76,6 +76,12 @@ export function repairLoadedState(state: GameState, now: number): GameState {
     : initialState.workshop.forgeSlots;
   const tierConfig =
     TIERS[state.workshop.forgeTier as keyof typeof TIERS] ?? TIERS[1];
+  const legendaryItemIds = uniqueIds([
+    ...(state.prestige?.legendaryItemIds ?? []),
+    ...Object.values(state.itemsById ?? {})
+      .filter((item) => item.isLegendary || item.rarity === "legendary")
+      .map((item) => item.itemId)
+  ]);
 
   const repairedState: GameState = {
     ...state,
@@ -109,6 +115,21 @@ export function repairLoadedState(state: GameState, now: number): GameState {
       ownedUpgradeIds: state.upgrades?.ownedUpgradeIds ?? [],
       ownedPrestigeUpgradeIds: state.upgrades?.ownedPrestigeUpgradeIds ?? []
     },
+    prestige: {
+      forgeSigilsEarnedTotal: state.prestige?.forgeSigilsEarnedTotal ?? 0,
+      forgeSigilsSpentTotal: state.prestige?.forgeSigilsSpentTotal ?? 0,
+      masterworkItemIds: state.prestige?.masterworkItemIds ?? [],
+      legendaryItemIds,
+      completedPrestigeRuns: state.prestige?.completedPrestigeRuns ?? []
+    },
+    achievements: {
+      unlockedAchievementIds: state.achievements?.unlockedAchievementIds ?? [],
+      unlockedAtById: state.achievements?.unlockedAtById ?? {}
+    },
+    feedback: {
+      eventsById: state.feedback?.eventsById ?? {},
+      pendingEventIds: state.feedback?.pendingEventIds ?? []
+    },
     log: {
       entries: state.log?.entries ?? [],
       maxEntries: state.log?.maxEntries ?? 200
@@ -121,6 +142,10 @@ export function repairLoadedState(state: GameState, now: number): GameState {
   };
 
   return initializeOrderState(applyOwnedUpgradeEffects(repairedState), { now, rng: defaultRng });
+}
+
+function uniqueIds(ids: string[]): string[] {
+  return Array.from(new Set(ids));
 }
 
 function prepareStateForSave(state: GameState, now: number): GameState {

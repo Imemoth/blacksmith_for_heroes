@@ -9,9 +9,16 @@ type ItemCardProps = {
   onSell?: (itemId: string) => void;
   compact?: boolean;
   matchingOrderLabels?: string[];
+  isMasterworkEligible?: boolean;
 };
 
-export function ItemCard({ item, onSell, compact = false, matchingOrderLabels = [] }: ItemCardProps) {
+export function ItemCard({
+  item,
+  onSell,
+  compact = false,
+  matchingOrderLabels = [],
+  isMasterworkEligible = false
+}: ItemCardProps) {
   return (
     <article className={`item-card ${item.rarity}`}>
       <div className="item-row">
@@ -48,6 +55,10 @@ export function ItemCard({ item, onSell, compact = false, matchingOrderLabels = 
         <div className="affix-line">
           Matches: {matchingOrderLabels.join(", ")}
         </div>
+      ) : null}
+
+      {isMasterworkEligible ? (
+        <div className="masterwork-badge">Eligible for Masterwork</div>
       ) : null}
 
       {!compact && onSell ? (

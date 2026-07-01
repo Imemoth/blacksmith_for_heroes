@@ -6,8 +6,10 @@ import type { BlueprintConfig } from "../../types/blueprint.types";
 import type { EntityId } from "../../types/common.types";
 import type { GameState, GuildContractState, HeroCommissionState } from "../../types/gameState.types";
 import type { ItemState } from "../../types/item.types";
+import { getUnlockedCraftAchievements } from "../systems/achievementSystem";
 import { getBlueprintPurchaseStates, getEffectiveBlueprintLevelBonus } from "../systems/blueprintSystem";
 import { calculateCraftCost, calculateCraftDurationSeconds } from "../systems/craftSystem";
+import { isItemMasterworkEligible } from "../systems/masterworkSystem";
 import {
   canItemSatisfyGuildRequirement,
   canItemSatisfyHeroCommission,
@@ -152,6 +154,19 @@ export function getForgeTierUpgradeEntries(state: GameState) {
 
 export function getCurrentTierConfig(state: GameState) {
   return TIERS[state.workshop.forgeTier as keyof typeof TIERS] ?? TIERS[1];
+}
+
+export function getPendingFeedbackEvent(state: GameState) {
+  const feedbackId = state.feedback.pendingEventIds[0];
+  return feedbackId ? state.feedback.eventsById[feedbackId] : undefined;
+}
+
+export function getAchievementEntries(state: GameState) {
+  return getUnlockedCraftAchievements(state);
+}
+
+export function getItemMasterworkEligibility(state: GameState, item: ItemState): boolean {
+  return isItemMasterworkEligible(state, item);
 }
 
 function getForgeTierLevelBonus(forgeTier: number): number {

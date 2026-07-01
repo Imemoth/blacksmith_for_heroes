@@ -24,6 +24,7 @@ import { defaultRng, type SystemContext } from "../rng/rng";
 import { pickWeighted } from "../rng/weightedRandom";
 import { getBlueprintConfig, isBlueprintUnlockedForShop } from "./blueprintSystem";
 import { addLogEntry } from "./eventLogSystem";
+import { maybeApplyHeroFeedback } from "./feedbackSystem";
 import { addReputation } from "./reputationSystem";
 
 type WeightedCandidate<T> = T & { weight: number };
@@ -607,7 +608,7 @@ export function completeHeroCommission(
   };
 
   nextState = addReputation(nextState, commission.reputationReward, context.now);
-  return addLogEntry(nextState, {
+  nextState = addLogEntry(nextState, {
     type: "hero_commission_completed",
     text: `${commission.heroName} received ${item.displayName} for ${goldReward} Gold and ${commission.reputationReward} Rep.`,
     relatedHeroId: commission.heroId,
@@ -615,6 +616,7 @@ export function completeHeroCommission(
     relatedCommissionId: commissionId,
     createdAt: context.now
   });
+  return maybeApplyHeroFeedback(nextState, commission, item, context);
 }
 
 export function getActiveGuildContracts(state: GameState): GuildContractState[] {

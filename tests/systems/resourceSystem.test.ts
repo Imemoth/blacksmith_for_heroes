@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { canSpendResources, spendResources, tickResources } from "../../src/game/systems/resourceSystem";
+import {
+  canSpendResources,
+  getResourceTickerProgress,
+  spendResources,
+  tickResources
+} from "../../src/game/systems/resourceSystem";
 import { makeTestGameState } from "../fixtures/testGameState";
 
 describe("resourceSystem", () => {
@@ -48,5 +53,55 @@ describe("resourceSystem", () => {
     expect(canSpendResources(state, { ironOre: 999 })).toBe(false);
     expect(() => spendResources(state, { ironOre: 999 })).toThrow("Not enough resources");
     expect(state.resources.ironOre).toBe(12);
+  });
+
+  it("derives Ore and Wood production ticker progress without changing state", () => {
+    const state = {
+      ...makeTestGameState(0),
+      resources: {
+        ...makeTestGameState(0).resources,
+        ironOre: 12.5,
+        wood: 8.25
+      }
+    };
+
+    expect(getResourceTickerProgress(state, "ironOre")).toMatchObject({
+      resourceId: "ironOre",
+      progress: 0.5,
+      isCapped: false,
+      secondsUntilNext: 4,
+      ratePerSecond: 0.125
+    });
+    expect(getResourceTickerProgress(state, "wood")).toMatchObject({
+      resourceId: "wood",
+      progress: 0.25,
+      isCapped: false,
+      secondsUntilNext: 7.5,
+      ratePerSecond: 0.1
+    });
+    expect(state.resources.ironOre).toBe(12.5);
+    expect(state.resources.wood).toBe(8.25);
+  });
+
+  it("shows capped state for full production resources", () => {
+    const state = {
+      ...makeTestGameState(0),
+      resources: {
+        ...makeTestGameState(0).resources,
+        ironOre: 30,
+        wood: 25
+      }
+    };
+
+    expect(getResourceTickerProgress(state, "ironOre")).toMatchObject({
+      progress: 1,
+      isCapped: true,
+      secondsUntilNext: 0
+    });
+    expect(getResourceTickerProgress(state, "wood")).toMatchObject({
+      progress: 1,
+      isCapped: true,
+      secondsUntilNext: 0
+    });
   });
 });

@@ -7,9 +7,11 @@ import { canStartCraft } from "../../game/systems/craftSystem";
 import type { GameStore } from "../../game/state/gameStore";
 import {
   getActiveCraftForSlot,
+  getAchievementEntries,
   getCraftCostDisplay,
   getCraftDurationDisplay,
   getBlueprintLevelRange,
+  getItemMasterworkEligibility,
   getInventoryItems,
   getLastCraftedItem,
   getMatchingOrderLabelsForItem,
@@ -31,6 +33,7 @@ export function ForgeTab({ store }: ForgeTabProps) {
   const craftableBlueprints = getOwnedCraftableBlueprints(state);
   const inventoryItems = getInventoryItems(state);
   const lastCraftedItem = getLastCraftedItem(state);
+  const achievements = getAchievementEntries(state);
   const legendaryState = isLegendaryEnabled(state) ? "Legendary enabled" : "Legendary locked";
 
   return (
@@ -121,7 +124,13 @@ export function ForgeTab({ store }: ForgeTabProps) {
             </div>
           </section>
 
-          <CraftResultPanel item={lastCraftedItem} onSell={actions.sellItem} />
+          <CraftResultPanel
+            item={lastCraftedItem}
+            isMasterworkEligible={
+              lastCraftedItem ? getItemMasterworkEligibility(state, lastCraftedItem) : false
+            }
+            onSell={actions.sellItem}
+          />
         </div>
 
         <aside>
@@ -138,6 +147,7 @@ export function ForgeTab({ store }: ForgeTabProps) {
                   <ItemCard
                     key={item.itemId}
                     item={item}
+                    isMasterworkEligible={getItemMasterworkEligibility(state, item)}
                     matchingOrderLabels={getMatchingOrderLabelsForItem(state, item)}
                     onSell={actions.sellItem}
                   />
@@ -173,6 +183,21 @@ export function ForgeTab({ store }: ForgeTabProps) {
               Rep {state.player.reputationLevel}: {formatResource(state.player.reputationXp)} XP.
               Max item level {state.workshop.maxItemLevelCap}.
             </p>
+          </section>
+
+          <section className="panel">
+            <h2 className="panel-title">Achievements</h2>
+            {achievements.length ? (
+              <div className="achievement-list">
+                {achievements.slice(0, 8).map((achievement) => (
+                  <p className="log-entry" key={achievement.id}>
+                    {achievement.name}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">No Epic or Legendary weapon achievements yet.</p>
+            )}
           </section>
 
           <DebugPanel store={store} />

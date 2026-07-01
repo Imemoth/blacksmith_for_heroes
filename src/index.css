@@ -126,6 +126,22 @@ button {
   font-weight: 800;
 }
 
+.resource-ticker {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.resource-subtext {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.resource-subtext.capped {
+  color: var(--good);
+}
+
 .forge-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
@@ -325,6 +341,19 @@ button {
   color: var(--muted);
 }
 
+.masterwork-badge {
+  display: inline-flex;
+  margin-top: 10px;
+  border: 1px solid #d6ad4f;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #6e4a00;
+  background: #fff7d7;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .log-list {
   display: grid;
   gap: 8px;
@@ -340,6 +369,42 @@ button {
   background: #f8efe0;
   color: #4b443a;
   font-size: 0.9rem;
+}
+
+.achievement-list {
+  display: grid;
+  gap: 8px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(32, 32, 29, 0.38);
+}
+
+.feedback-dialog {
+  width: min(480px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.feedback-item-name {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.feedback-text {
+  margin: 16px 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .debug-grid {

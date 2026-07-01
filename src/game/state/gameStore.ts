@@ -8,6 +8,7 @@ import {
   advanceGame,
   deliverItemToGuildContractAction,
   deliverItemToHeroCommissionAction,
+  dismissFeedbackEventAction,
   dismissHeroCommissionAction,
   forceCompleteCraftAction,
   grantDebugReputation,
@@ -32,6 +33,7 @@ type GameStoreActions = {
   deliverItemToGuildContract: (itemId: EntityId, contractId: EntityId) => void;
   deliverItemToHeroCommission: (itemId: EntityId, commissionId: EntityId) => void;
   dismissHeroCommission: (commissionId: EntityId) => void;
+  dismissFeedback: (feedbackId: EntityId) => void;
   forceCompleteCraft: (rng?: Rng) => void;
   forceRareCraft: () => void;
   forceEpicCraft: () => void;
@@ -183,6 +185,12 @@ export function useGameStore(): GameStore {
       dismissHeroCommission: (commissionId) => {
         applyStateUpdate(
           (previousState, now) => dismissHeroCommissionAction(previousState, commissionId, now),
+          { saveAfter: true }
+        );
+      },
+      dismissFeedback: (feedbackId) => {
+        applyStateUpdate(
+          (previousState) => dismissFeedbackEventAction(previousState, feedbackId),
           { saveAfter: true }
         );
       },
