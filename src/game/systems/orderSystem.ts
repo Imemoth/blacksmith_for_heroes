@@ -46,7 +46,7 @@ export function initializeOrderState(
     ...withGuilds,
     orders: {
       ...withGuilds.orders,
-      nextHeroArrivalAt: context.now + getHeroArrivalIntervalMs(withGuilds)
+      nextHeroArrivalAt: context.now + getFirstHeroArrivalIntervalMs()
     }
   };
 }
@@ -656,6 +656,10 @@ export function getHeroArrivalIntervalMs(state: GameState): number {
     ];
 
   return seconds * 1000;
+}
+
+export function getFirstHeroArrivalIntervalMs(): number {
+  return TIMING_CONFIG.firstHeroArrivalSeconds * 1000;
 }
 
 export function isBlueprintShopAvailable(state: GameState, blueprintId: EntityId): boolean {

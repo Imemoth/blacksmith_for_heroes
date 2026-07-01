@@ -11,6 +11,7 @@ import { getBlueprintPurchaseStates } from "../systems/blueprintSystem";
 import { calculateCraftCost, calculateCraftDurationSeconds } from "../systems/craftSystem";
 import { getCraftableLevelRangeForBlueprint } from "../systems/itemGenerationSystem";
 import { isItemMasterworkEligible } from "../systems/masterworkSystem";
+import { canPrestige } from "../systems/prestigeSystem";
 import {
   canItemSatisfyGuildRequirement,
   canItemSatisfyHeroCommission,
@@ -18,7 +19,7 @@ import {
   getActiveHeroCommissions
 } from "../systems/orderSystem";
 import { getTierUpgradeStates } from "../systems/tierSystem";
-import { getUpgradePurchaseStates } from "../systems/upgradeSystem";
+import { getPrestigeUpgradePurchaseStates, getUpgradePurchaseStates } from "../systems/upgradeSystem";
 
 export function getSwordBlueprint() {
   return BLUEPRINTS.find((blueprint) => blueprint.id === "bp_sword_base");
@@ -164,4 +165,18 @@ export function getAchievementEntries(state: GameState) {
 
 export function getItemMasterworkEligibility(state: GameState, item: ItemState): boolean {
   return isItemMasterworkEligible(state, item);
+}
+
+export function getPrestigeRequirementState(state: GameState) {
+  return canPrestige(state);
+}
+
+export function getPrestigeUpgradeEntries(state: GameState) {
+  return getPrestigeUpgradePurchaseStates(state);
+}
+
+export function getMasterworkHistoryItems(state: GameState): ItemState[] {
+  return state.prestige.masterworkItemIds
+    .map((itemId) => state.itemsById[itemId])
+    .filter((item) => item !== undefined);
 }

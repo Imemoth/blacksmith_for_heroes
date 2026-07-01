@@ -7,6 +7,7 @@ import {
   dismissHeroCommission,
   ensureGuildContractSlots,
   expireHeroCommissions,
+  getFirstHeroArrivalIntervalMs,
   getFulfillableOrderLevelBand,
   generateGuildContract,
   generateHeroCommission,
@@ -155,7 +156,7 @@ describe("orderSystem guild contracts", () => {
     });
 
     expect(state.orders.activeGuildContractIds).toHaveLength(2);
-    expect(state.orders.nextHeroArrivalAt).toBe(300_000);
+    expect(state.orders.nextHeroArrivalAt).toBe(120_000);
     expect(
       state.orders.activeGuildContractIds.every(
         (id) => state.orders.guildContractsById[id].status === "offered"
@@ -600,10 +601,11 @@ describe("orderSystem hero commissions", () => {
       rng: createTestRng([0])
     });
 
-    expect(getHeroArrivalIntervalMs(repOneState)).toBe(300_000);
-    expect(getHeroArrivalIntervalMs(repThreeState)).toBe(240_000);
+    expect(getFirstHeroArrivalIntervalMs()).toBe(120_000);
+    expect(getHeroArrivalIntervalMs(repOneState)).toBe(180_000);
+    expect(getHeroArrivalIntervalMs(repThreeState)).toBe(150_000);
     expect(spawnedState.orders.activeHeroCommissionIds).toHaveLength(1);
-    expect(spawnedState.orders.nextHeroArrivalAt).toBe(301_000);
+    expect(spawnedState.orders.nextHeroArrivalAt).toBe(181_000);
   });
 
   it("expires heroes after 90 seconds and blocks expired completion", () => {
