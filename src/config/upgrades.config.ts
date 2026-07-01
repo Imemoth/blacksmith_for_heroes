@@ -52,3 +52,36 @@ export const WORKSHOP_UPGRADES: UpgradeConfig[] = [
     }
   }
 ];
+
+export const PRESTIGE_UPGRADES: UpgradeConfig[] = [
+  {
+    id: "permanent_storage_5",
+    name: "Permanent Storage +5",
+    description: "Each new forge run starts with 5 additional inventory slots.",
+    category: "prestige",
+    forgeSigilCost: 1,
+    effect: {
+      permanentInventorySlotAdd: 5
+    }
+  },
+  {
+    id: "starting_iron_5",
+    name: "Starting Iron +5",
+    description: "Each new forge run starts with 5 additional Iron Ore.",
+    category: "prestige",
+    forgeSigilCost: 1,
+    effect: {
+      permanentStartingIronOreAdd: 5
+    }
+  },
+  {
+    id: "starting_wood_3",
+    name: "Starting Wood +3",
+    description: "Each new forge run starts with 3 additional Wood.",
+    category: "prestige",
+    forgeSigilCost: 1,
+    effect: {
+      permanentStartingWoodAdd: 3
+    }
+  }
+];

@@ -1,6 +1,6 @@
 import { INVENTORY_CONFIG } from "../../config/inventory.config";
 import { RESOURCE_CONFIG } from "../../config/resources.config";
-import { WORKSHOP_UPGRADES } from "../../config/upgrades.config";
+import { PRESTIGE_UPGRADES, WORKSHOP_UPGRADES } from "../../config/upgrades.config";
 import type { EntityId } from "../../types/common.types";
 import type { GameState } from "../../types/gameState.types";
 import type { UpgradeConfig } from "../../types/upgrade.types";
@@ -16,6 +16,10 @@ export type UpgradePurchaseState = {
 
 export function getUpgradeConfig(upgradeId: EntityId): UpgradeConfig | undefined {
   return WORKSHOP_UPGRADES.find((upgrade) => upgrade.id === upgradeId);
+}
+
+export function getPrestigeUpgradeConfig(upgradeId: EntityId): UpgradeConfig | undefined {
+  return PRESTIGE_UPGRADES.find((upgrade) => upgrade.id === upgradeId);
 }
 
 export function getUpgradePurchaseState(
@@ -51,6 +55,37 @@ export function getUpgradePurchaseStates(state: GameState): UpgradePurchaseState
   );
 }
 
+export function getPrestigeUpgradePurchaseState(
+  state: GameState,
+  upgradeId: EntityId
+): UpgradePurchaseState | undefined {
+  const upgrade = getPrestigeUpgradeConfig(upgradeId);
+  if (!upgrade) return undefined;
+
+  const isOwned = state.upgrades.ownedPrestigeUpgradeIds.includes(upgradeId);
+  const reasons = getPrestigeUpgradeRequirementReasons(state, upgrade);
+  const canAfford = canSpendResources(state, {
+    forgeSigil: upgrade.forgeSigilCost ?? 0
+  });
+
+  if (!canAfford && !isOwned) {
+    reasons.push(`Requires ${upgrade.forgeSigilCost ?? 0} Forge Sigils`);
+  }
+
+  return {
+    upgrade,
+    status: isOwned ? "owned" : reasons.some((reason) => !reason.includes("Forge Sigils")) ? "locked" : "available",
+    reasons,
+    canAfford
+  };
+}
+
+export function getPrestigeUpgradePurchaseStates(state: GameState): UpgradePurchaseState[] {
+  return PRESTIGE_UPGRADES.map((upgrade) =>
+    getPrestigeUpgradePurchaseState(state, upgrade.id)
+  ).filter((entry) => entry !== undefined);
+}
+
 export function canPurchaseUpgrade(
   state: GameState,
   upgradeId: EntityId
@@ -63,6 +98,22 @@ export function canPurchaseUpgrade(
   const hardReason = getUpgradeRequirementReasons(state, purchaseState.upgrade)[0];
   if (hardReason) return { ok: false, reason: hardReason };
   if (!purchaseState.canAfford) return { ok: false, reason: "Not enough Gold" };
+
+  return { ok: true };
+}
+
+export function canPurchasePrestigeUpgrade(
+  state: GameState,
+  upgradeId: EntityId
+): { ok: boolean; reason?: string } {
+  const purchaseState = getPrestigeUpgradePurchaseState(state, upgradeId);
+
+  if (!purchaseState) return { ok: false, reason: "Prestige upgrade not found" };
+  if (purchaseState.status === "owned") return { ok: false, reason: "Prestige upgrade already owned" };
+
+  const hardReason = getPrestigeUpgradeRequirementReasons(state, purchaseState.upgrade)[0];
+  if (hardReason) return { ok: false, reason: hardReason };
+  if (!purchaseState.canAfford) return { ok: false, reason: "Not enough Forge Sigils" };
 
   return { ok: true };
 }
@@ -85,6 +136,39 @@ export function purchaseUpgrade(
     upgrades: {
       ...paidState.upgrades,
       ownedUpgradeIds: [...paidState.upgrades.ownedUpgradeIds, upgradeId]
+    }
+  });
+
+  return addLogEntry(nextState, {
+    type: "upgrade_purchased",
+    text: `Purchased ${upgrade.name}.`,
+    createdAt: now
+  });
+}
+
+export function purchasePrestigeUpgrade(
+  state: GameState,
+  upgradeId: EntityId,
+  now: number
+): GameState {
+  const check = canPurchasePrestigeUpgrade(state, upgradeId);
+  if (!check.ok) throw new Error(check.reason);
+
+  const upgrade = getPrestigeUpgradeConfig(upgradeId)!;
+  const paidState = spendResources(state, { forgeSigil: upgrade.forgeSigilCost ?? 0 });
+  const nextState = applyOwnedUpgradeEffects({
+    ...paidState,
+    upgrades: {
+      ...paidState.upgrades,
+      ownedPrestigeUpgradeIds: [
+        ...paidState.upgrades.ownedPrestigeUpgradeIds,
+        upgradeId
+      ]
+    },
+    prestige: {
+      ...paidState.prestige,
+      forgeSigilsSpentTotal:
+        paidState.prestige.forgeSigilsSpentTotal + (upgrade.forgeSigilCost ?? 0)
     }
   });
 
@@ -130,6 +214,7 @@ export function applyOwnedUpgradeEffects(state: GameState): GameState {
       manualGuildRefreshEnabled: false
     }
   );
+  const permanentEffects = getPermanentUpgradeEffects(state);
 
   return {
     ...state,
@@ -148,15 +233,58 @@ export function applyOwnedUpgradeEffects(state: GameState): GameState {
       guildContractSlots: 2 + effectTotals.guildContractSlotAdd,
       heroCommissionSlots: 1 + effectTotals.heroCommissionSlotAdd,
       manualGuildRefreshEnabled: effectTotals.manualGuildRefreshEnabled,
-      inventorySlotBonusFromGold: effectTotals.inventorySlotAdd
+      inventorySlotBonusFromGold: effectTotals.inventorySlotAdd,
+      inventorySlotBonusFromSigils: permanentEffects.inventorySlotAdd
     },
     inventory: {
       ...state.inventory,
       maxSlots:
         INVENTORY_CONFIG.startingSlots +
         effectTotals.inventorySlotAdd +
-        state.workshop.inventorySlotBonusFromSigils
+        permanentEffects.inventorySlotAdd
     }
+  };
+}
+
+export function getPermanentUpgradeEffects(state: GameState): {
+  inventorySlotAdd: number;
+  startingIronOreAdd: number;
+  startingWoodAdd: number;
+} {
+  return PRESTIGE_UPGRADES.filter((upgrade) =>
+    state.upgrades.ownedPrestigeUpgradeIds.includes(upgrade.id)
+  ).reduce(
+    (totals, upgrade) => ({
+      inventorySlotAdd:
+        totals.inventorySlotAdd + (upgrade.effect.permanentInventorySlotAdd ?? 0),
+      startingIronOreAdd:
+        totals.startingIronOreAdd + (upgrade.effect.permanentStartingIronOreAdd ?? 0),
+      startingWoodAdd:
+        totals.startingWoodAdd + (upgrade.effect.permanentStartingWoodAdd ?? 0)
+    }),
+    {
+      inventorySlotAdd: 0,
+      startingIronOreAdd: 0,
+      startingWoodAdd: 0
+    }
+  );
+}
+
+export function getPrestigeStartingResources(state: GameState): {
+  ironOre: number;
+  wood: number;
+} {
+  const permanentEffects = getPermanentUpgradeEffects(state);
+
+  return {
+    ironOre: Math.min(
+      RESOURCE_CONFIG.ironOre.startingCap,
+      RESOURCE_CONFIG.ironOre.startingAmount + permanentEffects.startingIronOreAdd
+    ),
+    wood: Math.min(
+      RESOURCE_CONFIG.wood.startingCap,
+      RESOURCE_CONFIG.wood.startingAmount + permanentEffects.startingWoodAdd
+    )
   };
 }
 
@@ -186,6 +314,24 @@ function getUpgradeRequirementReasons(state: GameState, upgrade: UpgradeConfig):
   if (requirements.minTier !== undefined && state.workshop.forgeTier < requirements.minTier) {
     reasons.push(`Requires Tier ${requirements.minTier}`);
   }
+  if (
+    requirements.minPrestigeCount !== undefined &&
+    state.player.totalPrestiges < requirements.minPrestigeCount
+  ) {
+    reasons.push(`Requires ${requirements.minPrestigeCount} Prestige`);
+  }
+
+  return reasons;
+}
+
+function getPrestigeUpgradeRequirementReasons(
+  state: GameState,
+  upgrade: UpgradeConfig
+): string[] {
+  const requirements = upgrade.requirements;
+  if (!requirements) return [];
+
+  const reasons: string[] = [];
   if (
     requirements.minPrestigeCount !== undefined &&
     state.player.totalPrestiges < requirements.minPrestigeCount

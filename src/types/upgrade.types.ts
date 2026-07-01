@@ -32,6 +32,8 @@ export type UpgradeConfig = {
     materialCapMultiplierAdd?: number;
     inventorySlotAdd?: number;
     permanentInventorySlotAdd?: number;
+    permanentStartingIronOreAdd?: number;
+    permanentStartingWoodAdd?: number;
     itemLevelMinBonusAdd?: number;
     rarityBonusTier?: number;
     guildContractSlotAdd?: number;

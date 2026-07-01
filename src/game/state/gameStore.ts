@@ -13,7 +13,9 @@ import {
   forceCompleteCraftAction,
   grantDebugReputation,
   grantDebugResources,
+  performPrestigeAction,
   purchaseBlueprintAction,
+  purchasePrestigeUpgradeAction,
   purchaseWorkshopUpgradeAction,
   sellItemAction,
   startCraftAction,
@@ -28,12 +30,14 @@ type GameStoreActions = {
   sellItem: (itemId: EntityId) => void;
   purchaseBlueprint: (blueprintId: EntityId) => void;
   purchaseWorkshopUpgrade: (upgradeId: EntityId) => void;
+  purchasePrestigeUpgrade: (upgradeId: EntityId) => void;
   upgradeForgeTier: (targetTier: number) => void;
   acceptGuildContract: (contractId: EntityId) => void;
   deliverItemToGuildContract: (itemId: EntityId, contractId: EntityId) => void;
   deliverItemToHeroCommission: (itemId: EntityId, commissionId: EntityId) => void;
   dismissHeroCommission: (commissionId: EntityId) => void;
   dismissFeedback: (feedbackId: EntityId) => void;
+  performPrestige: (selectedItemId?: EntityId) => void;
   forceCompleteCraft: (rng?: Rng) => void;
   forceRareCraft: () => void;
   forceEpicCraft: () => void;
@@ -150,6 +154,12 @@ export function useGameStore(): GameStore {
           { saveAfter: true }
         );
       },
+      purchasePrestigeUpgrade: (upgradeId) => {
+        applyStateUpdate(
+          (previousState, now) => purchasePrestigeUpgradeAction(previousState, upgradeId, now),
+          { saveAfter: true }
+        );
+      },
       upgradeForgeTier: (targetTier) => {
         applyStateUpdate(
           (previousState, now) => upgradeForgeTierAction(previousState, targetTier, now),
@@ -191,6 +201,12 @@ export function useGameStore(): GameStore {
       dismissFeedback: (feedbackId) => {
         applyStateUpdate(
           (previousState) => dismissFeedbackEventAction(previousState, feedbackId),
+          { saveAfter: true }
+        );
+      },
+      performPrestige: (selectedItemId) => {
+        applyStateUpdate(
+          (previousState, now) => performPrestigeAction(previousState, now, selectedItemId),
           { saveAfter: true }
         );
       },

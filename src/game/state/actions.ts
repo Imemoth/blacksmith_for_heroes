@@ -13,10 +13,11 @@ import {
   dismissHeroCommission,
   processOrderTimers
 } from "../systems/orderSystem";
+import { performPrestige } from "../systems/prestigeSystem";
 import { addReputation } from "../systems/reputationSystem";
 import { tickResources } from "../systems/resourceSystem";
 import { upgradeTier } from "../systems/tierSystem";
-import { purchaseUpgrade } from "../systems/upgradeSystem";
+import { purchasePrestigeUpgrade, purchaseUpgrade } from "../systems/upgradeSystem";
 import { getFreeForgeSlot } from "./selectors";
 
 export function advanceGame(state: GameState, now: number, rng: Rng = defaultRng): GameState {
@@ -61,6 +62,14 @@ export function purchaseWorkshopUpgradeAction(
   now: number
 ): GameState {
   return purchaseUpgrade(state, upgradeId, now);
+}
+
+export function purchasePrestigeUpgradeAction(
+  state: GameState,
+  upgradeId: EntityId,
+  now: number
+): GameState {
+  return purchasePrestigeUpgrade(state, upgradeId, now);
 }
 
 export function upgradeForgeTierAction(
@@ -110,6 +119,14 @@ export function dismissFeedbackEventAction(
   feedbackId: EntityId
 ): GameState {
   return dismissFeedbackEvent(state, feedbackId);
+}
+
+export function performPrestigeAction(
+  state: GameState,
+  now: number,
+  selectedItemId?: EntityId
+): GameState {
+  return performPrestige(state, { now, selectedItemId });
 }
 
 export function forceCompleteCraftAction(
