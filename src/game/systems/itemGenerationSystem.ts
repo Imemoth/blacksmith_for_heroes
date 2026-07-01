@@ -3,13 +3,15 @@ import { BLUEPRINTS } from "../../config/blueprints.config";
 import { ITEM_TYPES } from "../../config/itemTypes.config";
 import { POLISHING_KIT_I_RARITIES, RARITIES } from "../../config/rarities.config";
 import { LEGENDARY_NAMES } from "../../content/legendaryNames.config";
-import type { AffixType, ItemType, Rarity } from "../../types/common.types";
+import type { AffixType, EntityId, ItemType, Rarity } from "../../types/common.types";
 import type { ItemState } from "../../types/item.types";
 import type { GameState } from "../../types/gameState.types";
 import { createId } from "../../utils/ids";
 import { clamp } from "../../utils/math";
 import type { SystemContext } from "../rng/rng";
 import { getEffectiveBlueprintLevelBonus } from "./blueprintSystem";
+
+export type CraftableLevelRange = readonly [number, number];
 
 export function generateItem(
   state: GameState,
@@ -56,6 +58,45 @@ export function generateItem(
     isLegendary: rarity === "legendary",
     isMasterwork: false
   };
+}
+
+export function getCraftableLevelRangeForBlueprint(
+  state: GameState,
+  blueprintId: EntityId
+): CraftableLevelRange | undefined {
+  const blueprint = BLUEPRINTS.find((candidate) => candidate.id === blueprintId);
+
+  if (!blueprint) return undefined;
+  if (blueprint.itemType === "any") return undefined;
+  if (state.workshop.forgeTier < blueprint.requiredForgeTier) return undefined;
+
+  const baseLevel =
+    getEffectiveBlueprintLevelBonus(blueprint) +
+    getForgeTierLevelBonus(state.workshop.forgeTier) +
+    state.workshop.itemLevelMinBonus;
+  const minLevel = Math.floor(clamp(baseLevel, 1, state.workshop.maxItemLevelCap));
+  const maxLevel = Math.floor(clamp(baseLevel + 3, 1, state.workshop.maxItemLevelCap));
+
+  return [minLevel, maxLevel];
+}
+
+export function getCraftableLevelRangeForItemType(
+  state: GameState,
+  itemType: ItemType
+): CraftableLevelRange | undefined {
+  const ownedRanges = BLUEPRINTS.filter(
+    (blueprint) =>
+      blueprint.itemType === itemType && state.blueprints.ownedBlueprintIds.includes(blueprint.id)
+  )
+    .map((blueprint) => getCraftableLevelRangeForBlueprint(state, blueprint.id))
+    .filter((range) => range !== undefined);
+
+  if (!ownedRanges.length) return undefined;
+
+  return [
+    Math.min(...ownedRanges.map(([minLevel]) => minLevel)),
+    Math.max(...ownedRanges.map(([, maxLevel]) => maxLevel))
+  ];
 }
 
 export function rollRarity(state: GameState, context: SystemContext): Rarity {

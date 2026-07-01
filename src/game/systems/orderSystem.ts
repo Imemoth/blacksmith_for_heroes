@@ -25,6 +25,11 @@ import { pickWeighted } from "../rng/weightedRandom";
 import { getBlueprintConfig, isBlueprintUnlockedForShop } from "./blueprintSystem";
 import { addLogEntry } from "./eventLogSystem";
 import { maybeApplyHeroFeedback } from "./feedbackSystem";
+import {
+  getCraftableLevelRangeForBlueprint,
+  getCraftableLevelRangeForItemType,
+  type CraftableLevelRange
+} from "./itemGenerationSystem";
 import { addReputation } from "./reputationSystem";
 
 type WeightedCandidate<T> = T & { weight: number };
@@ -118,7 +123,12 @@ export function generateGuildContract(
     guildName: guildName?.name ?? "Oakvale Guild",
     guildType: template.guildType,
     requiredItems,
-    minLevel: rollScaledOrderMinLevel(state, isAdvancedGuildTemplate(template), context),
+    minLevel: rollScaledOrderMinLevel(
+      state,
+      isAdvancedGuildTemplate(template),
+      context,
+      getGuildContractCraftableLevelRange(state, requiredItems)
+    ),
     goldReward: rollIntegerRange(template.goldRewardRange, context),
     reputationReward: rollIntegerRange(template.reputationRewardRange, context),
     status: "offered",
@@ -363,7 +373,12 @@ export function generateHeroCommission(
     heroClass: template.heroClass,
     requiredBlueprintId: template.requiredBlueprintId,
     requiredItemType: template.requiredItemType,
-    minLevel: rollScaledOrderMinLevel(state, isAdvancedHeroTemplate(template), context),
+    minLevel: rollScaledOrderMinLevel(
+      state,
+      isAdvancedHeroTemplate(template),
+      context,
+      getCraftableLevelRangeForBlueprint(state, template.requiredBlueprintId)
+    ),
     preferredAffix: template.preferredAffix,
     bonusRarity: "bonusRarity" in template ? template.bonusRarity : undefined,
     goldRewardMultiplier: rollDecimalRange(template.goldMultiplierRange, context),
@@ -670,6 +685,24 @@ export function getScaledOrderLevelBand(
   return [cappedMin, cappedMax];
 }
 
+export function getFulfillableOrderLevelBand(
+  state: GameState,
+  isAdvancedOrder: boolean,
+  craftableRange: CraftableLevelRange | undefined
+): readonly [number, number] {
+  const scaledBand = getScaledOrderLevelBand(state, isAdvancedOrder);
+  if (!craftableRange) return scaledBand;
+
+  const intersectMin = Math.max(scaledBand[0], craftableRange[0]);
+  const intersectMax = Math.min(scaledBand[1], craftableRange[1]);
+
+  if (intersectMin <= intersectMax) {
+    return [intersectMin, intersectMax];
+  }
+
+  return craftableRange;
+}
+
 export function isContentUnlocked(entry: { unlock?: UnlockScope }, context: ContentContext): boolean {
   const unlock = entry.unlock;
   if (!unlock) return true;
@@ -714,9 +747,29 @@ function isHeroTemplateEligible(
 function rollScaledOrderMinLevel(
   state: GameState,
   isAdvancedOrder: boolean,
-  context: SystemContext
+  context: SystemContext,
+  craftableRange?: CraftableLevelRange
 ): number {
-  return rollIntegerRange(getScaledOrderLevelBand(state, isAdvancedOrder), context);
+  return rollIntegerRange(
+    getFulfillableOrderLevelBand(state, isAdvancedOrder, craftableRange),
+    context
+  );
+}
+
+function getGuildContractCraftableLevelRange(
+  state: GameState,
+  requiredItems: readonly GuildRequiredItemState[]
+): CraftableLevelRange | undefined {
+  const ranges = requiredItems
+    .map((requirement) => getCraftableLevelRangeForItemType(state, requirement.itemType))
+    .filter((range) => range !== undefined);
+
+  if (!ranges.length) return undefined;
+
+  const minLevel = Math.min(...ranges.map(([min]) => min));
+  const maxLevel = Math.min(...ranges.map(([, max]) => max));
+
+  return [Math.min(minLevel, maxLevel), maxLevel];
 }
 
 function isAdvancedGuildTemplate(template: GuildContractTemplate): boolean {

@@ -7,8 +7,9 @@ import type { EntityId } from "../../types/common.types";
 import type { GameState, GuildContractState, HeroCommissionState } from "../../types/gameState.types";
 import type { ItemState } from "../../types/item.types";
 import { getUnlockedCraftAchievements } from "../systems/achievementSystem";
-import { getBlueprintPurchaseStates, getEffectiveBlueprintLevelBonus } from "../systems/blueprintSystem";
+import { getBlueprintPurchaseStates } from "../systems/blueprintSystem";
 import { calculateCraftCost, calculateCraftDurationSeconds } from "../systems/craftSystem";
+import { getCraftableLevelRangeForBlueprint } from "../systems/itemGenerationSystem";
 import { isItemMasterworkEligible } from "../systems/masterworkSystem";
 import {
   canItemSatisfyGuildRequirement,
@@ -122,18 +123,14 @@ export function getTierName(state: GameState): string {
 }
 
 export function getBlueprintLevelRange(state: GameState, blueprintId: EntityId) {
-  const blueprint = BLUEPRINTS.find((candidate) => candidate.id === blueprintId);
-  if (!blueprint || blueprint.itemType === "any") return undefined;
+  const range = getCraftableLevelRangeForBlueprint(state, blueprintId);
 
-  const base =
-    getEffectiveBlueprintLevelBonus(blueprint) +
-    getForgeTierLevelBonus(state.workshop.forgeTier) +
-    state.workshop.itemLevelMinBonus;
-
-  return {
-    min: Math.max(1, Math.min(state.workshop.maxItemLevelCap, base)),
-    max: Math.max(1, Math.min(state.workshop.maxItemLevelCap, base + 3))
-  };
+  return range
+    ? {
+        min: range[0],
+        max: range[1]
+      }
+    : undefined;
 }
 
 export function isLegendaryEnabled(state: GameState): boolean {
@@ -167,10 +164,4 @@ export function getAchievementEntries(state: GameState) {
 
 export function getItemMasterworkEligibility(state: GameState, item: ItemState): boolean {
   return isItemMasterworkEligible(state, item);
-}
-
-function getForgeTierLevelBonus(forgeTier: number): number {
-  if (forgeTier >= 3) return 8;
-  if (forgeTier >= 2) return 4;
-  return 0;
 }
