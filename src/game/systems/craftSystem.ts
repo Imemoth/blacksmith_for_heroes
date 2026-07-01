@@ -3,6 +3,7 @@ import { ITEM_TYPES } from "../../config/itemTypes.config";
 import type { GameState } from "../../types/gameState.types";
 import { createId } from "../../utils/ids";
 import type { SystemContext } from "../rng/rng";
+import { unlockCraftAchievementForItem } from "./achievementSystem";
 import { addLogEntry } from "./eventLogSystem";
 import { addItemToInventory } from "./inventorySystem";
 import { generateItem } from "./itemGenerationSystem";
@@ -150,10 +151,11 @@ export function completeCraft(
     relatedItemId: item.itemId,
     createdAt: context.now
   });
+  const withAchievement = unlockCraftAchievementForItem(withCraftLog, item, context.now);
 
-  if (!isLegendary) return withCraftLog;
+  if (!isLegendary) return withAchievement;
 
-  return addLogEntry(withCraftLog, {
+  return addLogEntry(withAchievement, {
     type: "legendary_crafted",
     text: `Legendary craft: ${item.displayName}.`,
     relatedItemId: item.itemId,

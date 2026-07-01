@@ -4,6 +4,7 @@ import type { Rng, SystemContext } from "../rng/rng";
 import { defaultRng } from "../rng/rng";
 import { purchaseBlueprint } from "../systems/blueprintSystem";
 import { completeCraft, completeReadyCrafts, startCraft } from "../systems/craftSystem";
+import { dismissFeedbackEvent } from "../systems/feedbackSystem";
 import { sellItemToMarket } from "../systems/inventorySystem";
 import {
   acceptGuildContract,
@@ -102,6 +103,13 @@ export function dismissHeroCommissionAction(
   now: number
 ): GameState {
   return dismissHeroCommission(state, commissionId, now);
+}
+
+export function dismissFeedbackEventAction(
+  state: GameState,
+  feedbackId: EntityId
+): GameState {
+  return dismissFeedbackEvent(state, feedbackId);
 }
 
 export function forceCompleteCraftAction(

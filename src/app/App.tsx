@@ -3,13 +3,16 @@ import { ForgeTab } from "../features/forge/ForgeTab";
 import { OrdersTab } from "../features/orders/OrdersTab";
 import { ShopTab } from "../features/shop/ShopTab";
 import { WorkshopTab } from "../features/workshop/WorkshopTab";
+import { FeedbackDialog } from "../components/game/FeedbackDialog";
 import { useGameStore } from "../game/state/gameStore";
+import { getPendingFeedbackEvent } from "../game/state/selectors";
 
 type ActiveTab = "forge" | "orders" | "shop" | "workshop";
 
 export function App() {
   const store = useGameStore();
   const [activeTab, setActiveTab] = useState<ActiveTab>("forge");
+  const pendingFeedback = getPendingFeedbackEvent(store.state);
 
   return (
     <main className="app-shell">
@@ -28,6 +31,9 @@ export function App() {
       {activeTab === "orders" ? <OrdersTab store={store} /> : null}
       {activeTab === "shop" ? <ShopTab store={store} /> : null}
       {activeTab === "workshop" ? <WorkshopTab store={store} /> : null}
+      {pendingFeedback ? (
+        <FeedbackDialog event={pendingFeedback} onClose={store.actions.dismissFeedback} />
+      ) : null}
     </main>
   );
 }

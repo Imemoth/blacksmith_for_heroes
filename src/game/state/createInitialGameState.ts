@@ -79,6 +79,14 @@ export function createInitialGameState(now: number): GameState {
       legendaryItemIds: [],
       completedPrestigeRuns: []
     },
+    achievements: {
+      unlockedAchievementIds: [],
+      unlockedAtById: {}
+    },
+    feedback: {
+      eventsById: {},
+      pendingEventIds: []
+    },
     log: {
       entries: [],
       maxEntries: 200

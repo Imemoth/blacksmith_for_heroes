@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { startCraft } from "../../src/game/systems/craftSystem";
 import { CURRENT_SAVE_VERSION, loadGame, saveGame, SAVE_KEY } from "../../src/game/systems/saveSystem";
+import type { ItemState } from "../../src/types/item.types";
 import { makeTestGameState, createMemoryStorage, createTestRng } from "../fixtures/testGameState";
 
 const SWORD_BLUEPRINT_ID = "bp_sword_base";
@@ -96,5 +97,39 @@ describe("save and offline progress", () => {
 
     expect(loaded.inventory.itemIds).toEqual([]);
     expect(loaded.blueprints.ownedBlueprintIds).toContain(SWORD_BLUEPRINT_ID);
+  });
+
+  it("repairs the Legendary Archive from legendary items", () => {
+    const storage = createMemoryStorage();
+    const legendaryItem: ItemState = {
+      itemId: "item_legendary",
+      itemType: "sword",
+      blueprintId: "bp_sword_base",
+      displayName: "Mooncleaver",
+      rarity: "legendary",
+      level: 15,
+      power: 200,
+      sellValue: 200,
+      state: "assigned_hero",
+      createdAt: 0,
+      runId: "run_test",
+      isLegendary: true,
+      isMasterwork: false
+    };
+    const state = {
+      ...makeTestGameState(0),
+      itemsById: {
+        item_legendary: legendaryItem
+      },
+      prestige: {
+        ...makeTestGameState(0).prestige,
+        legendaryItemIds: []
+      }
+    };
+
+    saveGame(state, 0, storage);
+    const loaded = loadGame(0, storage);
+
+    expect(loaded.prestige.legendaryItemIds).toEqual(["item_legendary"]);
   });
 });

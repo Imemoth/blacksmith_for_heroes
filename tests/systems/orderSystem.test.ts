@@ -465,7 +465,7 @@ describe("orderSystem hero commissions", () => {
     const state = addItemToInventory(withHeroCommission(emptyOrdersState(0)), makeItem());
     const completedState = completeHeroCommission(state, "item_test", "commission_test", {
       now: 1000,
-      rng: createTestRng([0])
+      rng: createTestRng([0.999])
     });
 
     expect(completedState.resources.gold).toBe(15);
