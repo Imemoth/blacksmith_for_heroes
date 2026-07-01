@@ -7,6 +7,7 @@ import {
   dismissHeroCommission,
   ensureGuildContractSlots,
   expireHeroCommissions,
+  getFulfillableOrderLevelBand,
   generateGuildContract,
   generateHeroCommission,
   getScaledOrderLevelBand,
@@ -16,6 +17,12 @@ import {
   spawnDueHeroCommission
 } from "../../src/game/systems/orderSystem";
 import { addItemToInventory } from "../../src/game/systems/inventorySystem";
+import {
+  getCraftableLevelRangeForBlueprint,
+  getCraftableLevelRangeForItemType
+} from "../../src/game/systems/itemGenerationSystem";
+import { purchaseBlueprint } from "../../src/game/systems/blueprintSystem";
+import { completeCraft, startCraft } from "../../src/game/systems/craftSystem";
 import type { GameState, GuildContractState, HeroCommissionState } from "../../src/types/gameState.types";
 import type { ItemState } from "../../src/types/item.types";
 import { createTestRng, makeTestGameState } from "../fixtures/testGameState";
@@ -188,8 +195,78 @@ describe("orderSystem guild contracts", () => {
     });
 
     expect(getScaledOrderLevelBand(state)).toEqual([7, 12]);
-    expect(contract?.minLevel).toBe(12);
+    expect(contract?.minLevel).toBe(8);
     expect(contract?.minLevel).toBeLessThanOrEqual(state.workshop.maxItemLevelCap);
+  });
+
+  it("clamps Rep 3 / Tier 1 guild levels to the craftable item max", () => {
+    const state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 3, reputationXp: 250 },
+      blueprints: { ownedBlueprintIds: ["bp_sword_base", "bp_staff_base"] }
+    };
+    const contract = generateGuildContract(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0, 0, 0.999])
+    })!;
+    const staffRange = getCraftableLevelRangeForItemType(state, "staff")!;
+
+    expect(contract.templateId).toBe("contract_mage_circle_staffs");
+    expect(getScaledOrderLevelBand(state)).toEqual([4, 8]);
+    expect(staffRange).toEqual([1, 4]);
+    expect(contract.minLevel).toBeLessThanOrEqual(staffRange[1]);
+    expect(contract.minLevel).toBe(4);
+  });
+
+  it("clamps Rep 5 / Tier 2 guild levels to actual craftable max, not tier cap", () => {
+    const state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 5, reputationXp: 1650 },
+      workshop: { ...emptyOrdersState(0).workshop, forgeTier: 2, maxItemLevelCap: 15 },
+      blueprints: {
+        ownedBlueprintIds: ["bp_sword_base", "bp_bow_base", "bp_staff_base", "bp_axe_base"]
+      }
+    };
+    const contract = generateGuildContract(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0, 0, 0.999])
+    })!;
+    const axeRange = getCraftableLevelRangeForItemType(state, "axe")!;
+
+    expect(contract.templateId).toBe("contract_mercenary_axes");
+    expect(getScaledOrderLevelBand(state)).toEqual([10, 15]);
+    expect(axeRange).toEqual([5, 8]);
+    expect(contract.minLevel).toBeLessThanOrEqual(axeRange[1]);
+    expect(contract.minLevel).toBe(8);
+  });
+
+  it("keeps accepted guild contracts fulfillable", () => {
+    const state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 3, reputationXp: 250 },
+      blueprints: { ownedBlueprintIds: ["bp_sword_base", "bp_staff_base"] }
+    };
+    const offeredState = ensureGuildContractSlots(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0, 0, 0.999])
+    });
+    const contractId = offeredState.orders.activeGuildContractIds[0];
+    const acceptedState = acceptGuildContract(offeredState, contractId, 1000);
+    const acceptedContract = acceptedState.orders.guildContractsById[contractId];
+    const requiredItemType = acceptedContract.requiredItems[0].itemType;
+    const craftableRange = getCraftableLevelRangeForItemType(
+      acceptedState,
+      requiredItemType
+    )!;
+
+    expect(acceptedContract.status).toBe("accepted");
+    expect(acceptedContract.minLevel).toBeLessThanOrEqual(craftableRange[1]);
+    expect(
+      canItemSatisfyGuildRequirement(
+        makeItem({ itemType: requiredItemType, level: craftableRange[1] }),
+        acceptedContract
+      )
+    ).toBe(true);
   });
 
   it("applies Rep, Tier, city and weighted eligibility filters", () => {
@@ -364,12 +441,110 @@ describe("orderSystem hero commissions", () => {
 
     expect(getScaledOrderLevelBand(tierTwoState, true)).toEqual([10, 15]);
     expect(tierTwoCommission?.templateId).toBe("hero_duelist_advanced_sword");
-    expect(tierTwoCommission?.minLevel).toBe(15);
+    expect(tierTwoCommission?.minLevel).toBe(9);
     expect(tierTwoCommission?.minLevel).toBeLessThanOrEqual(
       tierTwoState.workshop.maxItemLevelCap
     );
     expect(getScaledOrderLevelBand(tierThreeState, true)).toEqual([14, 20]);
-    expect(tierThreeCommission?.minLevel).toBe(20);
+    expect(tierThreeCommission?.minLevel).toBe(13);
+  });
+
+  it("clamps Rep 3 / Tier 1 hero levels to craftable ranges", () => {
+    const state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 3, reputationXp: 250 },
+      blueprints: { ownedBlueprintIds: ["bp_sword_base", "bp_staff_base"] }
+    };
+    const commission = generateHeroCommission(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0.999, 0, 0])
+    })!;
+    const staffRange = getCraftableLevelRangeForBlueprint(state, "bp_staff_base")!;
+
+    expect(commission.templateId).toBe("hero_mage_staff");
+    expect(staffRange).toEqual([1, 4]);
+    expect(commission.minLevel).toBeLessThanOrEqual(staffRange[1]);
+    expect(commission.minLevel).toBe(4);
+  });
+
+  it("keeps missing-blueprint hero levels fulfillable after buying the blueprint", () => {
+    let state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 2, reputationXp: 100 },
+      resources: { ...emptyOrdersState(0).resources, gold: 500 }
+    };
+    const commission = generateHeroCommission(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0.999, 0, 0])
+    })!;
+    const futureBowRange = getCraftableLevelRangeForBlueprint(state, "bp_bow_base")!;
+
+    expect(commission.status).toBe("waiting_for_blueprint");
+    expect(commission.requiredBlueprintId).toBe("bp_bow_base");
+    expect(commission.minLevel).toBeLessThanOrEqual(futureBowRange[1]);
+
+    state = {
+      ...state,
+      orders: {
+        ...state.orders,
+        heroCommissionsById: { [commission.commissionId]: commission },
+        activeHeroCommissionIds: [commission.commissionId]
+      }
+    };
+    const purchasedState = purchaseBlueprint(state, "bp_bow_base", 1000);
+    const craftingState = startCraft(
+      purchasedState,
+      "bp_bow_base",
+      purchasedState.workshop.forgeSlots[0].slotId,
+      { now: 2000, rng: createTestRng([0]) }
+    );
+    const craft = Object.values(craftingState.workshop.activeCraftsById)[0];
+    const completedCraftState = completeCraft(craftingState, craft.craftId, {
+      now: 15_000,
+      rng: createTestRng([0.999, 0])
+    });
+    const itemId = completedCraftState.inventory.itemIds[0];
+    const deliveredState = completeHeroCommission(
+      completedCraftState,
+      itemId,
+      commission.commissionId,
+      { now: 16_000, rng: createTestRng([0.999]) }
+    );
+
+    expect(completedCraftState.itemsById[itemId].level).toBeGreaterThanOrEqual(
+      commission.minLevel
+    );
+    expect(deliveredState.orders.heroCommissionsById[commission.commissionId].status).toBe(
+      "completed"
+    );
+  });
+
+  it("allows Tier 3 advanced orders to use higher bands when actually craftable", () => {
+    const state = {
+      ...emptyOrdersState(0),
+      player: { ...emptyOrdersState(0).player, reputationLevel: 5, reputationXp: 1650 },
+      workshop: {
+        ...emptyOrdersState(0).workshop,
+        forgeTier: 3,
+        maxItemLevelCap: 20,
+        itemLevelMinBonus: 1
+      },
+      blueprints: {
+        ownedBlueprintIds: ["bp_sword_base", "bp_sword_basic_pattern"]
+      }
+    };
+    const craftableRange = getCraftableLevelRangeForBlueprint(
+      state,
+      "bp_sword_basic_pattern"
+    )!;
+    const commission = generateHeroCommission(state, {
+      now: 0,
+      rng: createTestRng([0.999, 0, 0.999, 0, 0])
+    })!;
+
+    expect(getFulfillableOrderLevelBand(state, true, craftableRange)).toEqual([14, 14]);
+    expect(commission.templateId).toBe("hero_duelist_advanced_sword");
+    expect(commission.minLevel).toBe(14);
   });
 
   it("does not generate unavailable blueprint heroes or a second missing-blueprint hero", () => {
