@@ -465,12 +465,14 @@ export function spawnDueHeroCommission(state: GameState, context: SystemContext)
 
 export function expireHeroCommissions(state: GameState, now: number): GameState {
   let nextState = state;
+  let expiredAny = false;
 
   for (const commissionId of state.orders.activeHeroCommissionIds) {
     const commission = nextState.orders.heroCommissionsById[commissionId];
     if (!commission || !isHeroCommissionActiveStatus(commission.status)) continue;
     if (commission.expiresAt > now) continue;
 
+    expiredAny = true;
     nextState = {
       ...nextState,
       orders: {
@@ -496,7 +498,7 @@ export function expireHeroCommissions(state: GameState, now: number): GameState 
     });
   }
 
-  return nextState;
+  return expiredAny ? scheduleNextHeroArrivalIfSlotOpen(nextState, now) : nextState;
 }
 
 export function dismissHeroCommission(
@@ -529,6 +531,7 @@ export function dismissHeroCommission(
       activeHeroCommissionIds: state.orders.activeHeroCommissionIds.filter(
         (id) => id !== commissionId
       ),
+      nextHeroArrivalAt: now + getHeroArrivalIntervalMs(state),
       heroDismissCooldownUntil: now + TIMING_CONFIG.heroDismissCooldownSeconds * 1000
     }
   };
@@ -623,6 +626,7 @@ export function completeHeroCommission(
   };
 
   nextState = addReputation(nextState, commission.reputationReward, context.now);
+  nextState = scheduleNextHeroArrivalIfSlotOpen(nextState, context.now);
   nextState = addLogEntry(nextState, {
     type: "hero_commission_completed",
     text: `${commission.heroName} received ${item.displayName} for ${goldReward} Gold and ${commission.reputationReward} Rep.`,
@@ -812,6 +816,20 @@ function getActiveHeroCommissionIds(state: GameState): EntityId[] {
     const commission = state.orders.heroCommissionsById[commissionId];
     return commission && isHeroCommissionActiveStatus(commission.status);
   });
+}
+
+function scheduleNextHeroArrivalIfSlotOpen(state: GameState, now: number): GameState {
+  const activeHeroIds = getActiveHeroCommissionIds(state);
+  if (activeHeroIds.length >= state.workshop.heroCommissionSlots) return state;
+
+  return {
+    ...state,
+    orders: {
+      ...state.orders,
+      activeHeroCommissionIds: activeHeroIds,
+      nextHeroArrivalAt: now + getHeroArrivalIntervalMs(state)
+    }
+  };
 }
 
 function pruneInactiveGuildContractIds(state: GameState): GameState {

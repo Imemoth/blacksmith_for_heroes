@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canSpendResources,
-  getResourceTickerProgress,
+  getResourceProductionProgress,
   spendResources,
   tickResources
 } from "../../src/game/systems/resourceSystem";
@@ -60,27 +60,29 @@ describe("resourceSystem", () => {
       ...makeTestGameState(0),
       resources: {
         ...makeTestGameState(0).resources,
-        ironOre: 12.5,
-        wood: 8.25
+        ironOre: 12.25,
+        wood: 8.05
       }
     };
 
-    expect(getResourceTickerProgress(state, "ironOre")).toMatchObject({
+    expect(getResourceProductionProgress(state, "ironOre", 2000)).toMatchObject({
       resourceId: "ironOre",
-      progress: 0.5,
+      progressPercent: 50,
       isCapped: false,
-      secondsUntilNext: 4,
+      secondsUntilNextTick: 4,
+      productionIntervalMs: 8000,
       ratePerSecond: 0.125
     });
-    expect(getResourceTickerProgress(state, "wood")).toMatchObject({
+    expect(getResourceProductionProgress(state, "wood", 2000)).toMatchObject({
       resourceId: "wood",
-      progress: 0.25,
+      progressPercent: 25,
       isCapped: false,
-      secondsUntilNext: 7.5,
+      secondsUntilNextTick: 7.5,
+      productionIntervalMs: 10_000,
       ratePerSecond: 0.1
     });
-    expect(state.resources.ironOre).toBe(12.5);
-    expect(state.resources.wood).toBe(8.25);
+    expect(state.resources.ironOre).toBe(12.25);
+    expect(state.resources.wood).toBe(8.05);
   });
 
   it("shows capped state for full production resources", () => {
@@ -93,15 +95,17 @@ describe("resourceSystem", () => {
       }
     };
 
-    expect(getResourceTickerProgress(state, "ironOre")).toMatchObject({
-      progress: 1,
+    expect(getResourceProductionProgress(state, "ironOre", 0)).toMatchObject({
+      progressPercent: 100,
       isCapped: true,
-      secondsUntilNext: 0
+      secondsUntilNextTick: 0,
+      productionIntervalMs: 8000
     });
-    expect(getResourceTickerProgress(state, "wood")).toMatchObject({
-      progress: 1,
+    expect(getResourceProductionProgress(state, "wood", 0)).toMatchObject({
+      progressPercent: 100,
       isCapped: true,
-      secondsUntilNext: 0
+      secondsUntilNextTick: 0,
+      productionIntervalMs: 10_000
     });
   });
 });

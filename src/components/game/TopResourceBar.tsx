@@ -6,16 +6,20 @@ import {
   getNextReputationThreshold,
   getTierName
 } from "../../game/state/selectors";
-import { getResourceTickerProgress } from "../../game/systems/resourceSystem";
+import {
+  getResourceProductionProgress,
+  type ResourceProductionProgress
+} from "../../game/systems/resourceSystem";
 
 type TopResourceBarProps = {
   state: GameState;
 };
 
 export function TopResourceBar({ state }: TopResourceBarProps) {
+  const now = Date.now();
   const nextRepThreshold = getNextReputationThreshold(state);
-  const ironTicker = getResourceTickerProgress(state, "ironOre");
-  const woodTicker = getResourceTickerProgress(state, "wood");
+  const ironTicker = getResourceProductionProgress(state, "ironOre", now);
+  const woodTicker = getResourceProductionProgress(state, "wood", now);
 
   return (
     <section aria-label="Resources" className="top-resource-bar">
@@ -46,23 +50,23 @@ function ResourceChip({
 }: {
   label: string;
   value: string;
-  ticker?: ReturnType<typeof getResourceTickerProgress>;
+  ticker?: ResourceProductionProgress;
 }) {
   return (
-    <div className="resource-chip">
+    <div className={ticker?.isCapped ? "resource-chip resource-capped" : "resource-chip"}>
       <span className="resource-label">{label}</span>
       <span className="resource-value">{value}</span>
       {ticker ? (
         <div className="resource-ticker">
           <ProgressBar
-            value={ticker.progress * 100}
+            value={ticker.progressPercent}
             max={100}
             label={`${label} production progress`}
           />
           <span className={ticker.isCapped ? "resource-subtext capped" : "resource-subtext"}>
             {ticker.isCapped
               ? "Capped"
-              : `Next in ${formatTickerSeconds(ticker.secondsUntilNext)}`}
+              : `Next in ${formatTickerSeconds(ticker.secondsUntilNextTick)}`}
           </span>
         </div>
       ) : null}
