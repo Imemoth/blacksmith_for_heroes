@@ -111,6 +111,11 @@ button {
   box-shadow: 0 3px 0 rgba(44, 34, 20, 0.08);
 }
 
+.resource-chip.resource-capped {
+  border-color: #79a382;
+  background: #f0f8ee;
+}
+
 .resource-label {
   display: block;
   color: var(--muted);
@@ -130,6 +135,14 @@ button {
   display: grid;
   gap: 5px;
   margin-top: 10px;
+}
+
+.resource-ticker .progress-fill {
+  transition: width 900ms linear;
+}
+
+.resource-capped .progress-fill {
+  background: var(--good);
 }
 
 .resource-subtext {

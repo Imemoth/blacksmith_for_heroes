@@ -4,13 +4,16 @@ import { clamp } from "../../utils/math";
 
 export type TickingResourceId = "ironOre" | "wood";
 
-export type ResourceTickerProgress = {
+export type ResourceProductionProgress = {
   resourceId: TickingResourceId;
-  progress: number;
+  progressPercent: number;
   isCapped: boolean;
-  secondsUntilNext: number;
+  secondsUntilNextTick: number;
+  productionIntervalMs: number;
   ratePerSecond: number;
 };
+
+export type ResourceTickerProgress = ResourceProductionProgress;
 
 export function tickResources(state: GameState, now: number): GameState {
   if (now < state.timers.lastResourceTickAt) {
@@ -71,23 +74,32 @@ export function spendResources(state: GameState, cost: ResourceCost): GameState 
   };
 }
 
-export function getResourceTickerProgress(
+export function getResourceProductionProgress(
   state: GameState,
-  resourceId: TickingResourceId
-): ResourceTickerProgress {
+  resourceId: TickingResourceId,
+  now = state.timers.lastResourceTickAt
+): ResourceProductionProgress {
   const capKey = resourceId === "ironOre" ? "ironOreCap" : "woodCap";
   const rateKey = resourceId === "ironOre" ? "ironOreRatePerSecond" : "woodRatePerSecond";
-  const amount = state.resources[resourceId];
   const cap = state.resources[capKey];
   const ratePerSecond = state.resources[rateKey];
+  const elapsedSeconds = Math.max(0, now - state.timers.lastResourceTickAt) / 1000;
+  const amount = clamp(
+    state.resources[resourceId] + elapsedSeconds * ratePerSecond,
+    0,
+    cap
+  );
   const isCapped = amount >= cap;
+  const productionIntervalMs =
+    ratePerSecond > 0 ? (1 / ratePerSecond) * 1000 : Number.POSITIVE_INFINITY;
 
   if (isCapped || ratePerSecond <= 0) {
     return {
       resourceId,
-      progress: isCapped ? 1 : 0,
+      progressPercent: isCapped ? 100 : 0,
       isCapped,
-      secondsUntilNext: isCapped ? 0 : Number.POSITIVE_INFINITY,
+      secondsUntilNextTick: isCapped ? 0 : Number.POSITIVE_INFINITY,
+      productionIntervalMs,
       ratePerSecond
     };
   }
@@ -98,9 +110,12 @@ export function getResourceTickerProgress(
 
   return {
     resourceId,
-    progress: clamp(amount - currentWholeAmount, 0, 1),
+    progressPercent: clamp(amount - currentWholeAmount, 0, 1) * 100,
     isCapped: false,
-    secondsUntilNext: amountUntilNext / ratePerSecond,
+    secondsUntilNextTick: amountUntilNext / ratePerSecond,
+    productionIntervalMs,
     ratePerSecond
   };
 }
+
+export const getResourceTickerProgress = getResourceProductionProgress;

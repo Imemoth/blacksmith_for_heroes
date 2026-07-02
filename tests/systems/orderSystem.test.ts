@@ -611,6 +611,12 @@ describe("orderSystem hero commissions", () => {
     expect(getFirstHeroArrivalIntervalMs()).toBe(120_000);
     expect(getHeroArrivalIntervalMs(repOneState)).toBe(180_000);
     expect(getHeroArrivalIntervalMs(repThreeState)).toBe(150_000);
+    expect(
+      getHeroArrivalIntervalMs({
+        ...repOneState,
+        player: { ...repOneState.player, reputationLevel: 5, reputationXp: 1650 }
+      })
+    ).toBe(90_000);
     expect(spawnedState.orders.activeHeroCommissionIds).toHaveLength(1);
     expect(spawnedState.orders.nextHeroArrivalAt).toBe(181_000);
   });
@@ -622,6 +628,7 @@ describe("orderSystem hero commissions", () => {
 
     expect(expiredState.orders.heroCommissionsById.commission_test.status).toBe("expired");
     expect(expiredState.orders.activeHeroCommissionIds).toEqual([]);
+    expect(expiredState.orders.nextHeroArrivalAt).toBe(270_000);
     expect(() =>
       completeHeroCommission(withItem, "item_test", "commission_test", {
         now: 91_000,
@@ -640,6 +647,7 @@ describe("orderSystem hero commissions", () => {
 
     expect(dismissedState.orders.heroCommissionsById.commission_test.status).toBe("dismissed");
     expect(dismissedState.orders.heroDismissCooldownUntil).toBe(301_000);
+    expect(dismissedState.orders.nextHeroArrivalAt).toBe(181_000);
     expect(() => dismissHeroCommission(nextHeroState, "commission_next", 2000)).toThrow(
       "Hero dismiss is on cooldown"
     );
@@ -659,6 +667,7 @@ describe("orderSystem hero commissions", () => {
     expect(completedState.itemsById.item_test.state).toBe("assigned_hero");
     expect(completedState.inventory.itemIds).toEqual([]);
     expect(completedState.orders.heroCommissionsById.commission_test.status).toBe("completed");
+    expect(completedState.orders.nextHeroArrivalAt).toBe(181_000);
     expect(completedState.heroes.heroesById.hero_test.completedCommissionIds).toContain(
       "commission_test"
     );
