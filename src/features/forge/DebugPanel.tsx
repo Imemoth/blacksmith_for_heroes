@@ -2,6 +2,7 @@ import { Hammer, RotateCcw, Save, Swords } from "lucide-react";
 import { Button } from "../../components/common/Button";
 import type { GameStore } from "../../game/state/gameStore";
 import { saveGame } from "../../game/systems/saveSystem";
+import { isLegendaryEnabled } from "../../game/state/selectors";
 
 type DebugPanelProps = {
   store: GameStore;
@@ -9,6 +10,7 @@ type DebugPanelProps = {
 
 export function DebugPanel({ store }: DebugPanelProps) {
   const hasCraft = Object.keys(store.state.workshop.activeCraftsById).length > 0;
+  const canForceLegendary = hasCraft && isLegendaryEnabled(store.state);
 
   return (
     <section className="panel">
@@ -26,6 +28,13 @@ export function DebugPanel({ store }: DebugPanelProps) {
         </Button>
         <Button variant="ghost" onClick={store.actions.forceEpicCraft} disabled={!hasCraft}>
           <Swords size={16} aria-hidden="true" /> Force Epic
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={store.actions.forceLegendaryMaxCraft}
+          disabled={!canForceLegendary}
+        >
+          <Swords size={16} aria-hidden="true" /> Force Legendary Max
         </Button>
         <Button variant="ghost" onClick={store.actions.resetSave}>
           <RotateCcw size={16} aria-hidden="true" /> Reset Save

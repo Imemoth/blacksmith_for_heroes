@@ -1,5 +1,6 @@
 import { AFFIXES } from "../../config/affixes.config";
 import { BLUEPRINTS } from "../../config/blueprints.config";
+import { ITEM_QUALITY_CONFIG } from "../../config/itemQuality.config";
 import { ITEM_TYPES } from "../../config/itemTypes.config";
 import { POLISHING_KIT_I_RARITIES, RARITIES } from "../../config/rarities.config";
 import { LEGENDARY_NAMES } from "../../content/legendaryNames.config";
@@ -26,15 +27,18 @@ export function generateItem(
   }
 
   const itemTypeConfig = ITEM_TYPES[blueprint.itemType];
-  const randomRoll = Math.floor(context.rng.nextFloat() * 4);
+  const randomRoll = Math.floor(
+    context.rng.nextFloat() * (ITEM_QUALITY_CONFIG.randomLevelBonusMax + 1)
+  );
+  const rarity = rollRarity(state, context);
   const forgeTierBonus = getForgeTierLevelBonus(state.workshop.forgeTier);
   const rawLevel =
     getEffectiveBlueprintLevelBonus(blueprint) +
     forgeTierBonus +
     state.workshop.itemLevelMinBonus +
-    randomRoll;
+    randomRoll +
+    ITEM_QUALITY_CONFIG.rarityLevelBonus[rarity];
   const level = Math.floor(clamp(rawLevel, 1, state.workshop.maxItemLevelCap));
-  const rarity = rollRarity(state, context);
   const rarityConfig = RARITIES[rarity];
   const affix = rollAffix(blueprint.itemType, rarity, context, blueprint.allowedAffixes);
   const affixPowerBonus = getAffixPowerBonus(affix?.type);
@@ -149,8 +153,10 @@ function rollAffix(
   context: SystemContext,
   allowedAffixes?: readonly AffixType[]
 ): { type: AffixType; value: number } | undefined {
-  if (rarity === "common") return undefined;
-  if (rarity === "fine" && context.rng.nextFloat() > 0.25) return undefined;
+  const affixChance = ITEM_QUALITY_CONFIG.affixChanceByRarity[rarity];
+
+  if (affixChance <= 0) return undefined;
+  if (affixChance < 1 && context.rng.nextFloat() >= affixChance) return undefined;
 
   const validAffixes = Object.values(AFFIXES).filter(
     (affixConfig) =>

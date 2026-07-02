@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptGuildContract,
   canItemSatisfyGuildRequirement,
+  canItemSatisfyHeroCommission,
   completeHeroCommission,
   deliverItemToGuildContract,
   dismissHeroCommission,
@@ -375,6 +376,12 @@ describe("orderSystem guild contracts", () => {
     const contract = state.orders.guildContractsById.contract_test;
 
     expect(canItemSatisfyGuildRequirement(makeItem({ level: 2 }), contract)).toBe(true);
+    expect(
+      canItemSatisfyGuildRequirement(
+        makeItem({ blueprintId: "bp_sword_basic_pattern", level: 2 }),
+        contract
+      )
+    ).toBe(true);
     expect(canItemSatisfyGuildRequirement(makeItem({ level: 1 }), contract)).toBe(false);
   });
 });
@@ -657,5 +664,17 @@ describe("orderSystem hero commissions", () => {
     );
     expect(completedState.heroes.heroesById.hero_test.equippedItemIds).toContain("item_test");
     expect(completedState.log.entries[0].type).toBe("hero_commission_completed");
+  });
+
+  it("accepts advanced blueprint items by matching item type for hero commissions", () => {
+    const state = withHeroCommission(emptyOrdersState(0));
+    const commission = state.orders.heroCommissionsById.commission_test;
+
+    expect(
+      canItemSatisfyHeroCommission(
+        makeItem({ blueprintId: "bp_sword_basic_pattern", level: 2 }),
+        commission
+      )
+    ).toBe(true);
   });
 });

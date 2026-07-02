@@ -11,8 +11,9 @@ import {
   completeCraft,
   startCraft
 } from "../../src/game/systems/craftSystem";
-import { rollRarity } from "../../src/game/systems/itemGenerationSystem";
+import { generateItem, rollRarity } from "../../src/game/systems/itemGenerationSystem";
 import { completeHeroCommission, generateHeroCommission } from "../../src/game/systems/orderSystem";
+import { getOwnedCraftableBlueprints } from "../../src/game/state/selectors";
 import { addReputation, calculateReputationLevel } from "../../src/game/systems/reputationSystem";
 import { canUpgradeTier, upgradeTier } from "../../src/game/systems/tierSystem";
 import { purchaseUpgrade } from "../../src/game/systems/upgradeSystem";
@@ -129,6 +130,22 @@ describe("blueprint shop", () => {
     });
   });
 
+  it("locks advanced Staff patterns until the base Staff Blueprint is owned", () => {
+    const state = withTier(withGold(withRep(makeTestGameState(0), 250), 1000), 2, 15);
+
+    expect(getBlueprintPurchaseState(state, "bp_apprentice_staff_pattern")).toMatchObject({
+      status: "locked",
+      reasons: ["Requires Staff Blueprint"]
+    });
+    expect(canPurchaseBlueprint(state, "bp_apprentice_staff_pattern")).toEqual({
+      ok: false,
+      reason: "Requires Staff Blueprint"
+    });
+    expect(() => purchaseBlueprint(state, "bp_apprentice_staff_pattern", 1000)).toThrow(
+      "Requires Staff Blueprint"
+    );
+  });
+
   it("makes newly purchased Bow, Staff, and Axe blueprints craftable", () => {
     const baseState = withMaterials(withGold(withRep(makeTestGameState(0), 625), 2000));
 
@@ -196,6 +213,79 @@ describe("blueprint shop", () => {
       "completed"
     );
     expect(deliveredState.itemsById[itemId].state).toBe("assigned_hero");
+  });
+
+  it("activates a waiting Staff hero when the base Staff Blueprint is purchased", () => {
+    let state = withTier(withMaterials(withGold(withRep(makeTestGameState(0), 250), 1000)), 2, 15);
+    const commission = generateHeroCommission(state, {
+      now: 0,
+      rng: createTestRng([0.9, 0, 0.999, 0, 0])
+    })!;
+
+    state = {
+      ...state,
+      orders: {
+        ...state.orders,
+        heroCommissionsById: {
+          [commission.commissionId]: commission
+        },
+        activeHeroCommissionIds: [commission.commissionId]
+      }
+    };
+
+    expect(commission).toMatchObject({
+      requiredBlueprintId: "bp_staff_base",
+      requiredItemType: "staff",
+      status: "waiting_for_blueprint",
+      isMissingBlueprintCommission: true
+    });
+
+    const purchasedState = purchaseBlueprint(state, "bp_staff_base", 1000);
+    const activatedCommission =
+      purchasedState.orders.heroCommissionsById[commission.commissionId];
+
+    expect(activatedCommission.status).toBe("active");
+    expect(activatedCommission.isMissingBlueprintCommission).toBe(false);
+    expect(activatedCommission.requiredBlueprintId).toBe("bp_staff_base");
+  });
+
+  it("allows buying an advanced Staff pattern after the base Staff Blueprint is owned", () => {
+    let state = withTier(withGold(withRep(makeTestGameState(0), 250), 1000), 2, 15);
+
+    state = purchaseBlueprint(state, "bp_staff_base", 1000);
+    const purchasedState = purchaseBlueprint(state, "bp_apprentice_staff_pattern", 2000);
+
+    expect(purchasedState.resources.gold).toBe(0);
+    expect(purchasedState.blueprints.ownedBlueprintIds).toContain("bp_staff_base");
+    expect(purchasedState.blueprints.ownedBlueprintIds).toContain(
+      "bp_apprentice_staff_pattern"
+    );
+  });
+
+  it("shows only the strongest owned eligible blueprint per item type for Forge crafting", () => {
+    const state = {
+      ...withTier(withGold(withRep(makeTestGameState(0), 250), 1000), 2, 15),
+      blueprints: {
+        ownedBlueprintIds: [
+          "bp_sword_base",
+          "bp_sword_basic_pattern",
+          "bp_bow_base",
+          "bp_staff_base",
+          "bp_apprentice_staff_pattern"
+        ]
+      }
+    };
+    const craftableBlueprintIds = getOwnedCraftableBlueprints(state).map(
+      (blueprint) => blueprint.id
+    );
+
+    expect(state.blueprints.ownedBlueprintIds).toContain("bp_sword_base");
+    expect(state.blueprints.ownedBlueprintIds).toContain("bp_staff_base");
+    expect(craftableBlueprintIds).toEqual([
+      "bp_sword_basic_pattern",
+      "bp_bow_base",
+      "bp_apprentice_staff_pattern"
+    ]);
   });
 });
 
@@ -351,5 +441,52 @@ describe("advanced blueprint crafting", () => {
     expect(craftingState.resources.wood).toBe(18);
     expect(item.level).toBe(6);
     expect(item.blueprintId).toBe("bp_sword_basic_pattern");
+  });
+
+  it("biases item levels upward for Rare, Epic, and Legendary crafts", () => {
+    const tierThreeState = withTier(makeTestGameState(0), 3, 20);
+
+    const common = generateItem(makeTestGameState(0), "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0, 0.999])
+    });
+    const rare = generateItem(makeTestGameState(0), "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0.97, 0.999])
+    });
+    const epic = generateItem(makeTestGameState(0), "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0.998, 0])
+    });
+    const legendary = generateItem(tierThreeState, "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0.999999, 0, 0])
+    });
+
+    expect(common).toMatchObject({ rarity: "common", level: 1 });
+    expect(rare).toMatchObject({ rarity: "rare", level: 2 });
+    expect(epic).toMatchObject({ rarity: "epic", level: 3 });
+    expect(legendary).toMatchObject({ rarity: "legendary", level: 12 });
+  });
+
+  it("gives Common items a small affix chance and Epic items a guaranteed affix", () => {
+    const commonWithAffix = generateItem(makeTestGameState(0), "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0, 0, 0])
+    });
+    const commonWithoutAffix = generateItem(makeTestGameState(0), "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0, 0.999])
+    });
+    const epicWithAffix = generateItem(makeTestGameState(0), "bp_sword_base", {
+      now: 0,
+      rng: createTestRng([0, 0.998, 0])
+    });
+
+    expect(commonWithAffix.rarity).toBe("common");
+    expect(commonWithAffix.affix).toMatchObject({ type: "sharp" });
+    expect(commonWithoutAffix.affix).toBeUndefined();
+    expect(epicWithAffix.rarity).toBe("epic");
+    expect(epicWithAffix.affix).toMatchObject({ type: "sharp" });
   });
 });

@@ -41,6 +41,7 @@ type GameStoreActions = {
   forceCompleteCraft: (rng?: Rng) => void;
   forceRareCraft: () => void;
   forceEpicCraft: () => void;
+  forceLegendaryMaxCraft: () => void;
   addIron: () => void;
   addWood: () => void;
   addGold: () => void;
@@ -212,12 +213,16 @@ export function useGameStore(): GameStore {
       },
       forceCompleteCraft: completeActiveCraftWithRng,
       forceRareCraft: () => {
-        const rareRng = createSequenceRng([0.2, 0.97, 0]);
+        const rareRng = createSequenceRng([0.999, 0.97, 0]);
         completeActiveCraftWithRng(rareRng);
       },
       forceEpicCraft: () => {
-        const epicRng = createSequenceRng([0.2, 0.998, 0]);
+        const epicRng = createSequenceRng([0.999, 0.998, 0]);
         completeActiveCraftWithRng(epicRng);
+      },
+      forceLegendaryMaxCraft: () => {
+        const legendaryRng = createSequenceRng([0.999999, 0.999999, 0]);
+        completeActiveCraftWithRng(legendaryRng);
       },
       addIron: () => {
         applyStateUpdate((previousState) => grantDebugResources(previousState, { ironOre: 10 }), {

@@ -89,11 +89,22 @@ export function getCraftDisplayName(itemType: keyof typeof ITEM_TYPES) {
 }
 
 export function getOwnedCraftableBlueprints(state: GameState): BlueprintConfig[] {
-  return BLUEPRINTS.filter(
-    (blueprint) =>
-      blueprint.itemType !== "any" &&
-      state.blueprints.ownedBlueprintIds.includes(blueprint.id)
-  );
+  const strongestByItemType = new Map<string, BlueprintConfig>();
+
+  for (const blueprint of BLUEPRINTS) {
+    if (blueprint.itemType === "any") continue;
+    if (!state.blueprints.ownedBlueprintIds.includes(blueprint.id)) continue;
+    if (!getCraftableLevelRangeForBlueprint(state, blueprint.id)) continue;
+
+    const current = strongestByItemType.get(blueprint.itemType);
+    if (!current || compareBlueprintStrength(state, blueprint, current) > 0) {
+      strongestByItemType.set(blueprint.itemType, blueprint);
+    }
+  }
+
+  return Object.keys(ITEM_TYPES)
+    .map((itemType) => strongestByItemType.get(itemType))
+    .filter((blueprint) => blueprint !== undefined);
 }
 
 export function getCraftCostDisplay(blueprintId: EntityId): string {
@@ -179,4 +190,34 @@ export function getMasterworkHistoryItems(state: GameState): ItemState[] {
   return state.prestige.masterworkItemIds
     .map((itemId) => state.itemsById[itemId])
     .filter((item) => item !== undefined);
+}
+
+function compareBlueprintStrength(
+  state: GameState,
+  left: BlueprintConfig,
+  right: BlueprintConfig
+): number {
+  const leftRange = getCraftableLevelRangeForBlueprint(state, left.id);
+  const rightRange = getCraftableLevelRangeForBlueprint(state, right.id);
+
+  if (!leftRange && !rightRange) return 0;
+  if (!leftRange) return -1;
+  if (!rightRange) return 1;
+
+  const leftKindScore = getBlueprintKindScore(left);
+  const rightKindScore = getBlueprintKindScore(right);
+
+  return (
+    leftRange[1] - rightRange[1] ||
+    leftRange[0] - rightRange[0] ||
+    leftKindScore - rightKindScore ||
+    left.requiredForgeTier - right.requiredForgeTier ||
+    left.goldCost - right.goldCost
+  );
+}
+
+function getBlueprintKindScore(blueprint: BlueprintConfig): number {
+  if (blueprint.kind === "advanced") return 2;
+  if (blueprint.kind === "base") return 1;
+  return 0;
 }
