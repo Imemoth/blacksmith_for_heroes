@@ -94,7 +94,7 @@ describe("craftSystem", () => {
     const craft = Object.values(craftingState.workshop.activeCraftsById)[0];
     const completedState = completeCraft(craftingState, craft.craftId, {
       now: 11_000,
-      rng: createTestRng([0, 0])
+      rng: createTestRng([0, 0, 0.999])
     });
     const itemId = completedState.inventory.itemIds[0];
     const item = completedState.itemsById[itemId];

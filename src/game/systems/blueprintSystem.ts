@@ -1,6 +1,6 @@
 import { BLUEPRINTS } from "../../config/blueprints.config";
 import type { BlueprintConfig } from "../../types/blueprint.types";
-import type { EntityId } from "../../types/common.types";
+import type { EntityId, ItemType } from "../../types/common.types";
 import type { GameState, HeroCommissionState } from "../../types/gameState.types";
 import { addLogEntry } from "./eventLogSystem";
 import { canSpendResources, spendResources } from "./resourceSystem";
@@ -16,6 +16,20 @@ export function getBlueprintConfig(blueprintId: EntityId): BlueprintConfig | und
   return BLUEPRINTS.find((blueprint) => blueprint.id === blueprintId);
 }
 
+export function getBaseBlueprintForItemType(itemType: ItemType): BlueprintConfig | undefined {
+  return BLUEPRINTS.find(
+    (blueprint) => blueprint.kind === "base" && blueprint.itemType === itemType
+  );
+}
+
+export function getRequiredBaseBlueprint(
+  blueprint: BlueprintConfig
+): BlueprintConfig | undefined {
+  if (blueprint.kind !== "advanced" || blueprint.itemType === "any") return undefined;
+
+  return getBaseBlueprintForItemType(blueprint.itemType);
+}
+
 export function getBlueprintPurchaseState(
   state: GameState,
   blueprintId: EntityId
@@ -25,12 +39,23 @@ export function getBlueprintPurchaseState(
 
   const isOwned = state.blueprints.ownedBlueprintIds.includes(blueprintId);
   const reasons: string[] = [];
+  let hasProgressionLock = false;
 
   if (state.player.reputationLevel < blueprint.requiredRepLevel) {
     reasons.push(`Requires Rep ${blueprint.requiredRepLevel}`);
+    hasProgressionLock = true;
   }
   if (state.workshop.forgeTier < blueprint.requiredForgeTier) {
     reasons.push(`Requires Tier ${blueprint.requiredForgeTier}`);
+    hasProgressionLock = true;
+  }
+  const requiredBaseBlueprint = getRequiredBaseBlueprint(blueprint);
+  if (
+    requiredBaseBlueprint &&
+    !state.blueprints.ownedBlueprintIds.includes(requiredBaseBlueprint.id)
+  ) {
+    reasons.push(`Requires ${requiredBaseBlueprint.name}`);
+    hasProgressionLock = true;
   }
 
   const canAfford = canSpendResources(state, { gold: blueprint.goldCost });
@@ -41,7 +66,7 @@ export function getBlueprintPurchaseState(
 
   return {
     blueprint,
-    status: isOwned ? "owned" : reasons.some((reason) => reason.startsWith("Requires Rep") || reason.startsWith("Requires Tier")) ? "locked" : "available",
+    status: isOwned ? "owned" : hasProgressionLock ? "locked" : "available",
     reasons,
     canAfford
   };
@@ -65,6 +90,13 @@ export function isBlueprintUnlockedForShop(state: GameState, blueprintId: Entity
   const blueprint = getBlueprintConfig(blueprintId);
   if (!blueprint) return false;
   if (state.blueprints.ownedBlueprintIds.includes(blueprintId)) return false;
+  const requiredBaseBlueprint = getRequiredBaseBlueprint(blueprint);
+  if (
+    requiredBaseBlueprint &&
+    !state.blueprints.ownedBlueprintIds.includes(requiredBaseBlueprint.id)
+  ) {
+    return false;
+  }
 
   return (
     state.player.reputationLevel >= blueprint.requiredRepLevel &&
@@ -85,6 +117,13 @@ export function canPurchaseBlueprint(
   }
   if (state.workshop.forgeTier < purchaseState.blueprint.requiredForgeTier) {
     return { ok: false, reason: `Requires Tier ${purchaseState.blueprint.requiredForgeTier}` };
+  }
+  const requiredBaseBlueprint = getRequiredBaseBlueprint(purchaseState.blueprint);
+  if (
+    requiredBaseBlueprint &&
+    !state.blueprints.ownedBlueprintIds.includes(requiredBaseBlueprint.id)
+  ) {
+    return { ok: false, reason: `Requires ${requiredBaseBlueprint.name}` };
   }
   if (!purchaseState.canAfford) {
     return { ok: false, reason: "Not enough Gold" };
